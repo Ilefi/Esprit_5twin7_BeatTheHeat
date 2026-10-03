@@ -6,7 +6,52 @@
 @source "../**/*.js";
 @source "../**/*.vue";
 
-@theme {
+/*
+ * Design tokens — every color in the project is defined here, in HSL only.
+ * Light values live on :root, dark values override them below.
+ */
+:root {
+    --background: hsl(60 20% 99%);
+    --foreground: hsl(60 8% 10%);
+    --surface: hsl(0 0% 100%);
+    --muted: hsl(60 5% 44%);
+    --border: hsl(60 6% 88%);
+    --primary: hsl(142 64% 36%);
+    --primary-foreground: hsl(0 0% 100%);
+    --accent: hsl(24 94% 53%);
+    --danger: hsl(0 72% 51%);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background: hsl(0 0% 4%);
+        --foreground: hsl(60 5% 93%);
+        --surface: hsl(60 2% 9%);
+        --muted: hsl(60 4% 62%);
+        --border: hsl(60 4% 24%);
+        --primary: hsl(142 55% 48%);
+        --primary-foreground: hsl(0 0% 4%);
+        --accent: hsl(24 94% 60%);
+        --danger: hsl(0 80% 62%);
+    }
+}
+
+@theme inline {
+    /* Drop Tailwind's default palette so only the tokens above can be used. */
+    --color-*: initial;
+
+    --color-transparent: transparent;
+    --color-current: currentColor;
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-surface: var(--surface);
+    --color-muted: var(--muted);
+    --color-border: var(--border);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-accent: var(--accent);
+    --color-danger: var(--danger);
+
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
