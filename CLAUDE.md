@@ -4,46 +4,52 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-NutriTrace (repo: Esprit_5twin7_BeatTheHeat) — a Laravel 12 application (PHP ^8.2) with a Blade + Vite + Tailwind CSS v4 frontend. No domain code exists yet; `welcome.blade.php` is a minimal placeholder page.
+NutriTrace (repo: Esprit_5twin7_BeatTheHeat) — a "farm to fork" food traceability platform, Esprit 5TWIN academic project. Laravel 12 (PHP ^8.2), Blade, Vite, Tailwind CSS v4, Alpine.js, Laravel Breeze (Blade stack). Four team modules: 1 Produits & Certifications, 2 Chaîne de traçabilité, 3 Empreinte environnementale, 4 Signalements & Avis. `docs/TEMPLATE.md` documents the UI template in detail (in French).
+
+- User-facing text is **French**; code (classes, variables, route names, attributes) is **English**. URLs are French (`/produits`, `/admin/signalements`), route names English (`front.*`, `account.*`, `admin.*`).
+- The UI currently runs on **demo data**: controllers read `App\Support\DemoData` (Eloquent-like objects with nested relations) and are marked `// TODO(Gestion N)`. Do not create models/migrations for module entities in the template; each teammate swaps DemoData calls for Eloquent in their own module.
 
 ## Styling rules (mandatory)
 
-- Colors are **HSL only**. Never write hex codes, `rgb()`/`rgba()`, `oklch()` or named colors in CSS, Blade, JS or inline SVG.
-- Every color is a CSS variable defined once in `resources/css/app.css` (light values on `:root`, dark values in the `prefers-color-scheme: dark` override) and exposed to Tailwind through `@theme inline` as `--color-*`.
-- Tailwind's default palette is disabled (`--color-*: initial`), so classes like `bg-red-500` or `bg-white` do not exist. Use the token classes (`bg-background`, `text-foreground`, `bg-surface`, `text-muted`, `border-border`, `bg-primary`, `text-accent`, `text-danger`, …). Never use arbitrary values such as `bg-[#fff]` or `text-[hsl(...)]`.
-- When a new color is needed, add a semantic token (with both a light and a dark value) to `app.css` instead of hard-coding it at the point of use.
-- Keep the project clean: no leftover Laravel boilerplate, dead code or unused assets.
+- Colors are **HSL only**, declared once as raw channels in the `:root` block of `resources/css/nutritrace.css` (`--nt-primary: 123 46% 34%`) and used as `hsl(var(--nt-primary))` / `hsl(var(--nt-primary) / .12)`. No hex, `rgb()`, `oklch()`, named colors, or literal `hsl()` values anywhere else (CSS, Blade, JS, inline SVG). Exception: `public/favicon.svg` (standalone file, mirrors the tokens in HSL).
+- Tailwind's default palette is disabled (`--color-*: initial` in the `@theme inline` block of `nutritrace.css`). Only token classes exist: `bg-primary`, `text-muted-foreground`, `bg-danger/10`, `text-primary-strong`, `bg-eco-b`… Never use arbitrary color values (`bg-[#fff]`).
+- Colored text on a tinted background uses the `*-strong` tokens (AA contrast). Eco-score B/C/D chips use `text-foreground`, A uses `text-primary-foreground`, E uses `text-danger-foreground`.
+- New color → add a semantic token to `:root` and map it in `@theme inline`; don't hard-code it at the point of use.
+- No dynamic Tailwind class names (`'bg-eco-'.$grade`): use lookup maps of full class names. Status/priority/type/role labels and colors live only in `App\View\Components\StatusBadge::MAP` (`<x-status-badge type="report" :value="…" />`, `StatusBadge::labelFor()`, `::options()`).
+- Keep the project clean: no leftover boilerplate, dead code or unused assets.
 
 ## Setup
 
-`.env` and `database/database.sqlite` are gitignored, so a fresh clone returns HTTP 500 (`MissingAppKeyException`) until these steps are run:
+`.env` and `database/database.sqlite` are gitignored:
 
 ```
-composer install
-npm install
-cp .env.example .env
-php artisan key:generate
-php artisan migrate        # creates database/database.sqlite if missing
-npm run build              # or keep `npm run dev` running
+composer install && npm install
+cp .env.example .env && php artisan key:generate
+php artisan migrate --seed   # admin@ / actor@ / consumer@nutritrace.tn, password "password"
+npm run build                # or keep `npm run dev` running — views load assets only through @vite
 ```
 
-Views load assets only through `@vite`; without a build or a running Vite dev server, pages fail with a missing-manifest error.
-
-Sessions, cache and queue all use the `database` driver (see `.env`), so the app also fails if migrations haven't been run.
+Sessions, cache and queue use the `database` driver, so the app fails until migrations have run.
 
 ## Commands
 
-- `composer dev` — runs the server, queue listener, Pail log tailer and Vite dev server together (via `concurrently`)
-- `php artisan serve` / `npm run dev` — run the backend or the frontend separately
-- `npm run build` — build production assets
-- `php artisan test` — run all tests (PHPUnit 11; suites: `tests/Unit`, `tests/Feature`)
-- `php artisan test --filter=TestName` — run one test class or method; `php artisan test tests/Feature/ExampleTest.php` runs one file
-- `vendor/bin/pint` — format PHP (Laravel Pint); `vendor/bin/pint --test` only checks
-- `php artisan pail` — tail application logs; the log file is `storage/logs/laravel.log`
+- `composer dev` — server + queue listener + Pail logs + Vite dev server together
+- `npm run build` — build assets (required after adding Tailwind classes when not running `npm run dev`)
+- `php artisan test` — all tests; `php artisan test --filter=TemplatePagesTest` smoke-tests every GET page (guest 200, protected → /login, admin 200, consumer 403 on /admin)
+- `php artisan view:cache` then `php artisan view:clear` — compile-check every Blade view
+- `php artisan route:list --except-vendor`
+- `vendor/bin/pint` — format PHP
 
-## Architecture notes
+Tests use in-memory SQLite (`phpunit.xml`), so `RefreshDatabase` never touches the dev database.
 
-- Laravel 12 streamlined structure: middleware, exception handling and routing are configured in `bootstrap/app.php` (there is no `app/Http/Kernel.php`), and service providers are registered in `bootstrap/providers.php`.
-- Routes: `routes/web.php` (HTTP) and `routes/console.php` (Artisan commands/schedule). There is no `routes/api.php`; run `php artisan install:api` to add it.
-- Frontend entry points are `resources/css/app.css` and `resources/js/app.js` (defined in `vite.config.js`). Tailwind v4 is configured through CSS (`@import "tailwindcss"`), not through a `tailwind.config.js`.
-- Tests: the SQLite in-memory settings in `phpunit.xml` are commented out, so tests that touch the database use the development `database/database.sqlite`. Using `RefreshDatabase` will wipe dev data unless you uncomment those lines.
+## Architecture
+
+- **Layouts (Blade inheritance is graded — keep it explicit):** `layouts/master` (head, `@stack('styles'|'scripts')`, `@yield('body')`) ← `front` (navbar/footer, `@section('pre_footer')…@show`) ← `account`; `master` ← `admin` (sidebar/topbar, sections `page_title`, `page_subtitle`, `page_actions`, `breadcrumb`); `master` ← `auth` (Breeze views). Every page uses `@extends` + `@section`; never `<x-app-layout>`/`<x-guest-layout>`.
+- **Components:** anonymous `x-nt.*` in `resources/views/components/nt/` (form fields under `nt/form/` handle label, `@error`, `old()` — pass `:use-old="false"` when several forms share field names on one page, and `bag="…"` for named error bags). Modals open with `$dispatch('open-modal', 'name')`.
+- **Admin create/edit** share one partial: `@include('admin.<module>._form', ['<model>' => $model ?? null])`.
+- **Routes:** `routes/front.php` (public + `/mon-espace`), `routes/admin.php` (`/admin`, middleware `['auth', 'admin']`), `routes/auth.php` (Breeze), `routes/web.php` requires them and keeps `dashboard` (redirects by role) and Breeze `profile.*` (still at `/profile`).
+- **Roles:** `users.role` (`admin|actor|consumer`), `User::isAdmin()`, `admin` middleware alias → `App\Http\Middleware\EnsureUserIsAdmin` (in `bootstrap/app.php`).
+- **Eco-score:** `App\Support\EcoScore` (server) and `ntEcoPreview` in `resources/js/nutritrace/components.js` (live admin preview) implement the same formula — change both together.
+- **JS:** `resources/js/nutritrace/*` registers Alpine components (`ntModal`, `ntCounter`, `ntRatingInput`, `ntFileDrop`, `ntReportWizard`, `ntChart`, `ntQr`…). Charts read colors from CSS variables via `tokens.js`. Alpine attribute expressions can't start with statements (`try`, `if`): put that logic in an `init()` method.
+- Absolutely positioned children (e.g. `sr-only` labels) escape `overflow-x-auto` containers unless the container is `relative` — keep scroll containers `relative`.
+- Locale is `fr` (`lang/fr/*.php`, `Carbon::setLocale` in `AppServiceProvider`, which also sets the default pagination view and the admin sidebar view composer).

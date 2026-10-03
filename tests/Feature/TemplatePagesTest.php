@@ -166,6 +166,17 @@ class TemplatePagesTest extends TestCase
         $this->get('/tracabilite/lots/NT-0000-XXX-0000')->assertNotFound();
     }
 
+    public function test_themed_error_pages(): void
+    {
+        $this->get('/page-qui-n-existe-pas')->assertNotFound()->assertSee('Ce produit s\'est perdu dans la chaîne');
+        $this->actingAs(User::factory()->create())->get('/admin')->assertForbidden()->assertSee('Cette parcelle est clôturée');
+
+        foreach ([419, 500, 503] as $code) {
+            $html = view('errors.'.$code)->render();
+            $this->assertStringContainsString('Erreur '.$code, $html);
+        }
+    }
+
     public function test_lot_search_redirects_to_the_lot(): void
     {
         $this->get('/tracabilite?code=nt-2026-olv-0412')->assertRedirect('/tracabilite/lots/NT-2026-OLV-0412');

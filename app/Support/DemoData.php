@@ -189,7 +189,9 @@ class DemoData
                 'eco_score' => $grade,
                 'description' => $p[11], 'composition' => $p[12],
                 'image' => null,
-                'status' => match ($p[0]) { 9 => 'draft', 10 => 'pending', default => 'published' },
+                'status' => match ($p[0]) {
+                    9 => 'draft', 10 => 'pending', default => 'published'
+                },
                 'rating_avg' => 0, 'reviews_count' => 0,
                 'batch_code' => null,
                 'created_at' => Carbon::now()->subDays(40 + $p[0] * 9),
