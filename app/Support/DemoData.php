@@ -481,7 +481,7 @@ class DemoData
                     $history->push(['label' => 'Passé en examen', 'by' => $assignee->name, 'at' => $createdAt->copy()->addHours(7)]);
                 }
                 if ($closed) {
-                    $history->push(['label' => 'Décision : '.StatusBadge::label('report', $r[4]), 'by' => $assignee?->name ?? 'Modération', 'at' => $createdAt->copy()->addDays(min(6, max(1, $r[8] - 1)))]);
+                    $history->push(['label' => 'Décision : '.StatusBadge::labelFor('report', $r[4]), 'by' => $assignee?->name ?? 'Modération', 'at' => $createdAt->copy()->addDays(min(6, max(1, $r[8] - 1)))]);
                 }
 
                 $messages = collect([

@@ -99,7 +99,7 @@ class StatusBadge extends Component
         $this->iconClass = $iconClass;
     }
 
-    public static function label(string $type, ?string $value): string
+    public static function labelFor(string $type, ?string $value): string
     {
         return self::MAP[$type][$value][0] ?? ucfirst((string) $value);
     }

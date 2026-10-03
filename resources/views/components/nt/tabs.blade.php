@@ -12,8 +12,14 @@
 <div x-data="{
         tab: @js($active),
         init() {
+            this.fromHash(false);
+            window.addEventListener('hashchange', () => this.fromHash(true));
+        },
+        fromHash(scroll) {
             const hash = window.location.hash.slice(1);
-            if (hash && this.$el.querySelector('#tab-' + CSS.escape(hash))) this.tab = hash;
+            if (! hash || ! this.$el.querySelector('#tab-' + CSS.escape(hash))) return;
+            this.tab = hash;
+            if (scroll || document.readyState !== 'complete') this.$nextTick(() => this.$refs.list.scrollIntoView({ block: 'start' }));
         },
         move(step) {
             const tabs = [...this.$refs.list.querySelectorAll('[role=tab]')];
@@ -23,7 +29,7 @@
         },
     }" {{ $attributes }}>
     <div class="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-        <div role="tablist" aria-label="Sections" x-ref="list" class="flex min-w-max gap-1 border-b"
+        <div role="tablist" aria-label="Sections" x-ref="list" class="flex min-w-max scroll-mt-24 gap-1 border-b"
              x-on:keydown.right.prevent="move(1)" x-on:keydown.left.prevent="move(-1)">
             @foreach ($tabs as $key => $tab)
                 <button type="button" role="tab" id="tab-{{ $key }}" aria-controls="panel-{{ $key }}"

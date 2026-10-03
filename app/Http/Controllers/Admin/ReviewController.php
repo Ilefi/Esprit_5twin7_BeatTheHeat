@@ -59,7 +59,7 @@ class ReviewController extends Controller
         ]);
 
         // TODO(Gestion 4): $review->update(['status' => $data['status']]) + log moderation history
-        return back()->with('success', 'Avis '.mb_strtolower(StatusBadge::label('review', $data['status'])).' avec succès.');
+        return back()->with('success', 'Avis '.mb_strtolower(StatusBadge::labelFor('review', $data['status'])).' avec succès.');
     }
 
     public function bulk(Request $request): RedirectResponse

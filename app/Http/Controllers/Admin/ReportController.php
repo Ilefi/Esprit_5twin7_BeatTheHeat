@@ -78,7 +78,7 @@ class ReportController extends Controller
         $report = DemoData::report($ref);
         $data = $request->validate(['status' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('report')))]]);
 
-        return back()->with('success', "{$report->ref} → ".StatusBadge::label('report', $data['status']).'.');
+        return back()->with('success', "{$report->ref} → ".StatusBadge::labelFor('report', $data['status']).'.');
     }
 
     public function note(Request $request, string $ref): RedirectResponse

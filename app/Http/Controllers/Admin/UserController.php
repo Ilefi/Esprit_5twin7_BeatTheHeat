@@ -44,6 +44,6 @@ class UserController extends Controller
         $data = $request->validate(['role' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('role')))]]);
 
         // TODO(shared): User::findOrFail($id)->forceFill(['role' => $data['role']])->save()
-        return redirect()->route('admin.users.index')->with('success', "Rôle de {$user->name} : ".StatusBadge::label('role', $data['role']).'.');
+        return redirect()->route('admin.users.index')->with('success', "Rôle de {$user->name} : ".StatusBadge::labelFor('role', $data['role']).'.');
     }
 }
