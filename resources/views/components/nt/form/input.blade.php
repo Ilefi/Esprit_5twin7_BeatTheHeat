@@ -7,6 +7,7 @@
     'value' => null,
     'id' => null,
     'bag' => 'default',
+    'useOld' => true,
     'icon' => null,
     'srOnlyLabel' => false,
 ])
@@ -15,7 +16,7 @@
     $key = trim(str_replace(['[]', '[', ']'], ['', '.', ''], $name), '.');
     $id ??= str_replace('.', '_', $key);
     $hasError = $errors->getBag($bag)->has($key);
-    $current = $type === 'password' ? null : old($key, $value);
+    $current = $type === 'password' ? null : ($useOld ? old($key, $value) : $value);
     $describedBy = $hasError ? $id.'-error' : ($hint ? $id.'-hint' : null);
 @endphp
 

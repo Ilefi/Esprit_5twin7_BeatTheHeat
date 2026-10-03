@@ -1,55 +1,24 @@
-<section class="space-y-6">
+<section class="max-w-xl space-y-5">
     <header>
-        <h2 class="text-lg font-medium text-gray-900">
-            {{ __('Delete Account') }}
-        </h2>
-
-        <p class="mt-1 text-sm text-gray-600">
-            {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Before deleting your account, please download any data or information that you wish to retain.') }}
-        </p>
+        <h2 class="text-lg font-semibold text-danger-strong">Supprimer le compte</h2>
+        <p class="mt-1 text-sm text-muted-foreground">La suppression est définitive : vos données, avis et signalements seront effacés. Téléchargez d'abord ce que vous souhaitez conserver.</p>
     </header>
 
-    <x-danger-button
-        x-data=""
-        x-on:click.prevent="$dispatch('open-modal', 'confirm-user-deletion')"
-    >{{ __('Delete Account') }}</x-danger-button>
+    <x-nt.button variant="danger" icon="fa-trash" x-data x-on:click="$dispatch('open-modal', 'confirm-user-deletion')">Supprimer mon compte</x-nt.button>
 
-    <x-modal name="confirm-user-deletion" :show="$errors->userDeletion->isNotEmpty()" focusable>
-        <form method="post" action="{{ route('profile.destroy') }}" class="p-6">
+    <x-nt.modal name="confirm-user-deletion" title="Supprimer définitivement votre compte ?" :show="$errors->userDeletion->isNotEmpty()" max-width="md">
+        <form method="post" action="{{ route('profile.destroy') }}" id="delete-user-form" class="space-y-4">
             @csrf
             @method('delete')
 
-            <h2 class="text-lg font-medium text-gray-900">
-                {{ __('Are you sure you want to delete your account?') }}
-            </h2>
+            <p class="text-sm text-muted-foreground">Saisissez votre mot de passe pour confirmer la suppression définitive de votre compte.</p>
 
-            <p class="mt-1 text-sm text-gray-600">
-                {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Please enter your password to confirm you would like to permanently delete your account.') }}
-            </p>
-
-            <div class="mt-6">
-                <x-input-label for="password" value="{{ __('Password') }}" class="sr-only" />
-
-                <x-text-input
-                    id="password"
-                    name="password"
-                    type="password"
-                    class="mt-1 block w-3/4"
-                    placeholder="{{ __('Password') }}"
-                />
-
-                <x-input-error :messages="$errors->userDeletion->get('password')" class="mt-2" />
-            </div>
-
-            <div class="mt-6 flex justify-end">
-                <x-secondary-button x-on:click="$dispatch('close')">
-                    {{ __('Cancel') }}
-                </x-secondary-button>
-
-                <x-danger-button class="ms-3">
-                    {{ __('Delete Account') }}
-                </x-danger-button>
-            </div>
+            <x-nt.form.input name="password" id="delete_user_password" type="password" label="Mot de passe" bag="userDeletion" placeholder="Mot de passe" />
         </form>
-    </x-modal>
+
+        <x-slot:footer>
+            <x-nt.button variant="ghost" x-on:click="$dispatch('close-modal')">Annuler</x-nt.button>
+            <x-nt.button type="submit" form="delete-user-form" variant="danger" icon="fa-trash">Supprimer le compte</x-nt.button>
+        </x-slot:footer>
+    </x-nt.modal>
 </section>

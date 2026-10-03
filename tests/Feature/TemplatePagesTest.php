@@ -50,6 +50,15 @@ class TemplatePagesTest extends TestCase
     {
         return [
             'report wizard' => ['/signalements/nouveau'],
+            'report wizard prefilled' => ['/signalements/nouveau?type=greenwashing&cible=actor&id=3'],
+            'account dashboard' => ['/mon-espace'],
+            'account reviews' => ['/mon-espace/avis'],
+            'account reviews filtered' => ['/mon-espace/avis?statut=published'],
+            'account reports' => ['/mon-espace/signalements'],
+            'account reports filtered' => ['/mon-espace/signalements?statut=in_review'],
+            'account report open' => ['/mon-espace/signalements/SIG-2026-0004'],
+            'account report closed' => ['/mon-espace/signalements/SIG-2026-0016'],
+            'profile' => ['/profile'],
         ];
     }
 

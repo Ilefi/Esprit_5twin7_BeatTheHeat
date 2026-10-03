@@ -1,29 +1,22 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Profile') }}
-        </h2>
-    </x-slot>
+@extends('layouts.account')
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-            <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.update-profile-information-form')
-                </div>
-            </div>
+@section('title', 'Mon profil')
+@section('account_breadcrumb', 'Mon profil')
+@section('account_title', 'Mon profil')
+@section('account_subtitle', 'Gérez vos informations personnelles, votre mot de passe et votre compte.')
 
-            <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.update-password-form')
-                </div>
-            </div>
+@section('account_content')
+    <div class="space-y-6">
+        <x-nt.card>
+            @include('profile.partials.update-profile-information-form')
+        </x-nt.card>
 
-            <div class="p-4 sm:p-8 bg-white shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.delete-user-form')
-                </div>
-            </div>
-        </div>
+        <x-nt.card>
+            @include('profile.partials.update-password-form')
+        </x-nt.card>
+
+        <x-nt.card class="border-danger/30">
+            @include('profile.partials.delete-user-form')
+        </x-nt.card>
     </div>
-</x-app-layout>
+@endsection

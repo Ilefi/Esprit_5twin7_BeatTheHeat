@@ -9,13 +9,14 @@
     'rows' => 4,
     'maxlength' => null,
     'bag' => 'default',
+    'useOld' => true,
 ])
 
 @php
     $key = trim(str_replace(['[]', '[', ']'], ['', '.', ''], $name), '.');
     $id ??= str_replace('.', '_', $key);
     $hasError = $errors->getBag($bag)->has($key);
-    $current = (string) old($key, $value);
+    $current = (string) ($useOld ? old($key, $value) : $value);
 @endphp
 
 <div {{ $attributes->only('class')->class(['space-y-1.5']) }} @if ($maxlength) x-data="{ count: {{ mb_strlen($current) }} }" @endif>
