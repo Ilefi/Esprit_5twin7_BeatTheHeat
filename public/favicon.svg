@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+    <!-- Standalone file: cannot read CSS variables, so the HSL values mirror --nt-primary and --nt-gold. -->
+    <path fill="hsl(123 46% 34%)" d="M22 3c9 1.5 15 9 14.2 19.4C35.5 31.6 28 37.4 19.6 36.6 11 35.8 5 28.3 6 19.8 7 10.6 13.6 2 22 3Z"/>
+    <path fill="none" stroke="hsl(0 0% 100%)" stroke-width="2.6" stroke-linecap="round" d="M14 30.5C18.5 24 23.5 17.5 30 10.5"/>
+    <circle fill="hsl(43 96% 58%)" cx="4" cy="36.5" r="3.2"/>
+</svg>

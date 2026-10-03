@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\View\Composers\AdminSidebarComposer;
+use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +23,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Carbon::setLocale(config('app.locale'));
+
+        Paginator::defaultView('vendor.pagination.nutritrace');
+        Paginator::defaultSimpleView('vendor.pagination.nutritrace');
+
+        View::composer(['partials.admin.sidebar', 'partials.admin.topbar'], AdminSidebarComposer::class);
     }
 }

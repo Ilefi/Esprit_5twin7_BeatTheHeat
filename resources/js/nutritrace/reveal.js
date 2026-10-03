@@ -1,0 +1,22 @@
+import { prefersReducedMotion } from './tokens';
+
+// Adds .is-visible to .nt-reveal elements once they scroll into view (fade-in-up in nutritrace.css).
+export default function initReveal() {
+    const elements = document.querySelectorAll('.nt-reveal');
+
+    if (prefersReducedMotion() || !('IntersectionObserver' in window)) {
+        elements.forEach((el) => el.classList.add('is-visible'));
+        return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('is-visible');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+    elements.forEach((el) => observer.observe(el));
+}
