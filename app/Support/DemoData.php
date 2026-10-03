@@ -387,7 +387,7 @@ class DemoData
 
         $reviews = collect($rows)->values()->map(function ($r, $i) use ($products, $users) {
             $product = $products[$r[0]];
-            $createdAt = Carbon::now()->subDays($r[10])->subHours($i);
+            $createdAt = Carbon::now()->subDays($r[9])->subHours($i);
 
             return self::make([
                 'id' => $i + 1,
@@ -403,9 +403,9 @@ class DemoData
                 'helpful_count' => $r[7],
                 'status' => $r[8],
                 'created_at' => $createdAt,
-                'reply' => $r[11] ? self::make([
+                'reply' => $r[10] ? self::make([
                     'author' => $product->producer->name,
-                    'body' => $r[11],
+                    'body' => $r[10],
                     'created_at' => $createdAt->copy()->addDay(),
                 ]) : null,
                 'history' => collect(array_filter([

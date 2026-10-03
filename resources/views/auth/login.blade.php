@@ -1,47 +1,36 @@
-<x-guest-layout>
-    <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+@extends('layouts.auth')
 
-    <form method="POST" action="{{ route('login') }}">
+@section('title', 'Connexion')
+@section('auth_title', 'Bon retour parmi nous')
+@section('auth_subtitle', 'Connectez-vous pour noter vos produits, suivre vos signalements et gérer votre espace.')
+
+@section('content')
+    @if (session('status'))
+        <x-nt.alert type="success" class="mb-5">{{ session('status') }}</x-nt.alert>
+    @endif
+
+    <form method="POST" action="{{ route('login') }}" class="space-y-5">
         @csrf
 
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
+        <x-nt.form.input name="email" type="email" label="Adresse e-mail" icon="fa-envelope" required autofocus autocomplete="username" />
+        <x-nt.form.input name="password" type="password" label="Mot de passe" icon="fa-lock" required autocomplete="current-password" />
 
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="current-password" />
-
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
-
-        <!-- Remember Me -->
-        <div class="block mt-4">
-            <label for="remember_me" class="inline-flex items-center">
-                <input id="remember_me" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" name="remember">
-                <span class="ms-2 text-sm text-gray-600">{{ __('Remember me') }}</span>
-            </label>
-        </div>
-
-        <div class="flex items-center justify-end mt-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <x-nt.form.checkbox name="remember" id="remember_me" label="Se souvenir de moi" />
             @if (Route::has('password.request'))
-                <a class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" href="{{ route('password.request') }}">
-                    {{ __('Forgot your password?') }}
-                </a>
+                <a class="nt-link text-sm" href="{{ route('password.request') }}">Mot de passe oublié ?</a>
             @endif
-
-            <x-primary-button class="ms-3">
-                {{ __('Log in') }}
-            </x-primary-button>
         </div>
+
+        <x-nt.button type="submit" size="lg" class="w-full" icon="fa-right-to-bracket">Se connecter</x-nt.button>
     </form>
-</x-guest-layout>
+
+    <div class="mt-6 rounded-lg bg-muted/60 p-4 text-xs text-muted-foreground">
+        <p class="font-semibold text-foreground"><i class="fa-solid fa-flask me-1" aria-hidden="true"></i> Comptes de démonstration</p>
+        <p class="mt-1">admin@nutritrace.tn · actor@nutritrace.tn · consumer@nutritrace.tn — mot de passe : <code class="font-mono">password</code></p>
+    </div>
+@endsection
+
+@section('auth_footer')
+    Pas encore de compte ? <a href="{{ route('register') }}" class="nt-link">Créer un compte</a>
+@endsection

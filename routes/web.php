@@ -3,12 +3,12 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+require __DIR__.'/front.php';
+require __DIR__.'/admin.php';
 
+// Breeze redirects here after login / registration / e-mail verification.
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    return redirect()->route(auth()->user()->isAdmin() ? 'admin.dashboard' : 'account.dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
