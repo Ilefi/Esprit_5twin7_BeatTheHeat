@@ -11,7 +11,7 @@
 @section('content')
     <section class="nt-container py-10">
         <div class="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <nav aria-label="Filtrer par type" class="-mx-4 overflow-x-auto px-4">
+            <nav aria-label="Filtrer par type" class="relative -mx-4 overflow-x-auto px-4">
                 <ul class="flex min-w-max gap-2">
                     <li>
                         <a href="{{ route('front.actors.index', request()->only('q')) }}" @class(['nt-btn nt-btn-sm', 'nt-btn-primary' => ! request('type'), 'nt-btn-outline' => request('type')])>

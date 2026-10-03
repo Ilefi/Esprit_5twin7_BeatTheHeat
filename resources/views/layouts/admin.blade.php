@@ -4,9 +4,15 @@
 @section('body_class', 'min-h-screen bg-background text-foreground')
 
 @section('body')
-    <div x-data="{ sidebar: false, collapsed: false }"
-         x-init="try { collapsed = localStorage.getItem('nt-sidebar') === '1' } catch (e) {}"
-         x-effect="try { localStorage.setItem('nt-sidebar', collapsed ? '1' : '0') } catch (e) {}"
+    <div x-data="{
+            sidebar: false,
+            collapsed: false,
+            init() {
+                // Remember the collapsed sidebar per browser (storage may be unavailable).
+                try { this.collapsed = localStorage.getItem('nt-sidebar') === '1'; } catch (e) {}
+                this.$watch('collapsed', (value) => { try { localStorage.setItem('nt-sidebar', value ? '1' : '0'); } catch (e) {} });
+            },
+         }"
          x-on:keydown.escape.window="sidebar = false"
          class="flex min-h-screen">
         @include('partials.admin.sidebar')

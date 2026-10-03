@@ -67,9 +67,10 @@ export default function registerCharts(Alpine) {
                         },
                     },
                     scales: isCircular ? {} : {
-                        x: { grid: { display: false }, border: { color: tokenColor('border') } },
+                        x: { grid: { display: false }, border: { color: tokenColor('border') }, ticks: { precision: config.decimals ?? 0 } },
                         y: {
                             beginAtZero: true,
+                            ticks: { precision: config.decimals ?? 0 },
                             grid: { color: tokenColor('border', 0.6) },
                             border: { display: false },
                         },

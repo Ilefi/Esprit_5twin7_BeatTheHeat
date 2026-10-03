@@ -9,6 +9,7 @@
     'value' => null,
     'id' => null,
     'bag' => 'default',
+    'useOld' => true,
     'srOnlyLabel' => false,
 ])
 
@@ -16,7 +17,7 @@
     $key = trim(str_replace(['[]', '[', ']'], ['', '.', ''], $name), '.');
     $id ??= str_replace('.', '_', $key);
     $hasError = $errors->getBag($bag)->has($key);
-    $current = (string) old($key, $value);
+    $current = (string) ($useOld ? old($key, $value) : $value);
 @endphp
 
 <div {{ $attributes->only('class')->class(['space-y-1.5']) }}>

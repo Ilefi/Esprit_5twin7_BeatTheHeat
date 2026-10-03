@@ -98,7 +98,7 @@
                 <h2 class="text-base font-semibold"><i class="fa-solid fa-map-location-dot me-2 text-primary" aria-hidden="true"></i>Trajet schématique</h2>
                 <span class="nt-badge nt-badge-primary">{{ $batch->total_km }} km au total</span>
             </x-slot:header>
-            <div class="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+            <div class="relative -mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
             <svg viewBox="0 0 800 170" class="h-auto w-full min-w-[40rem]" role="img" aria-label="Trajet de {{ $batch->total_km }} km en {{ $batch->steps->count() }} étapes">
                 <line x1="40" y1="70" x2="760" y2="70" class="stroke-border" stroke-width="6" stroke-linecap="round"/>
                 <line x1="40" y1="70" x2="760" y2="70" class="nt-draw-line stroke-primary" stroke-width="6" stroke-linecap="round" pathLength="1000" style="--nt-path-length: 1000"/>

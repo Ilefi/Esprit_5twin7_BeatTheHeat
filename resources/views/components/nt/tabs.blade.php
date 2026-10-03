@@ -28,7 +28,7 @@
             next.click();
         },
     }" {{ $attributes }}>
-    <div class="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+    <div class="relative -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <div role="tablist" aria-label="Sections" x-ref="list" class="flex min-w-max scroll-mt-24 gap-1 border-b"
              x-on:keydown.right.prevent="move(1)" x-on:keydown.left.prevent="move(-1)">
             @foreach ($tabs as $key => $tab)

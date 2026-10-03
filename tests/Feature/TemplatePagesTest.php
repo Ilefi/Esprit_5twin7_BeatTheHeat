@@ -62,6 +62,86 @@ class TemplatePagesTest extends TestCase
         ];
     }
 
+    public static function adminPages(): array
+    {
+        return [
+            'dashboard' => ['/admin'],
+            'products' => ['/admin/produits'],
+            'products filtered' => ['/admin/produits?q=huile&statut=published&eco=B&categorie=1'],
+            'product create' => ['/admin/produits/create'],
+            'product show' => ['/admin/produits/1'],
+            'product edit' => ['/admin/produits/1/edit'],
+            'categories' => ['/admin/categories'],
+            'certifications' => ['/admin/certifications'],
+            'certification create' => ['/admin/certifications/create'],
+            'certification edit' => ['/admin/certifications/1/edit'],
+            'verifications' => ['/admin/certifications/verifications'],
+            'verifications rejected' => ['/admin/certifications/verifications?statut=rejected'],
+            'actors' => ['/admin/acteurs'],
+            'actor create' => ['/admin/acteurs/create'],
+            'actor edit' => ['/admin/acteurs/1/edit'],
+            'batches' => ['/admin/lots'],
+            'batch create' => ['/admin/lots/create'],
+            'batch show' => ['/admin/lots/1'],
+            'batch edit' => ['/admin/lots/1/edit'],
+            'impacts' => ['/admin/empreinte'],
+            'impacts filtered' => ['/admin/empreinte?eco=A'],
+            'impact create' => ['/admin/empreinte/create'],
+            'impact edit' => ['/admin/empreinte/1/edit'],
+            'emission factors' => ['/admin/empreinte/facteurs'],
+            'reviews' => ['/admin/avis'],
+            'reviews flagged' => ['/admin/avis?statut=flagged&note=1'],
+            'review show' => ['/admin/avis/21'],
+            'reports' => ['/admin/signalements'],
+            'reports filtered' => ['/admin/signalements?type=greenwashing&priorite=high&periode=90'],
+            'reports kanban' => ['/admin/signalements?vue=kanban'],
+            'report show' => ['/admin/signalements/SIG-2026-0001'],
+            'users' => ['/admin/utilisateurs'],
+            'users by role' => ['/admin/utilisateurs?role=admin'],
+            'user edit' => ['/admin/utilisateurs/3/modifier'],
+        ];
+    }
+
+    #[DataProvider('adminPages')]
+    public function test_admin_pages_render_for_admins(string $uri): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']))->get($uri)->assertOk();
+    }
+
+    #[DataProvider('adminPages')]
+    public function test_admin_pages_are_forbidden_for_consumers(string $uri): void
+    {
+        $this->actingAs(User::factory()->create())->get($uri)->assertForbidden();
+    }
+
+    #[DataProvider('adminPages')]
+    public function test_admin_pages_redirect_guests_to_login(string $uri): void
+    {
+        $this->get($uri)->assertRedirect('/login');
+    }
+
+    public function test_dashboard_route_redirects_by_role(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']))->get('/dashboard')->assertRedirect('/admin');
+        $this->actingAs(User::factory()->create())->get('/dashboard')->assertRedirect('/mon-espace');
+    }
+
+    public function test_admin_forms_validate_and_redirect(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->from('/admin/produits/create')->post('/admin/produits', [])
+            ->assertRedirect('/admin/produits/create')
+            ->assertSessionHasErrors(['name', 'category_id', 'price']);
+
+        $this->actingAs($admin)->patch('/admin/signalements/SIG-2026-0002', ['status' => 'resolved', 'priority' => 'high'])
+            ->assertSessionHasErrors('resolution');
+
+        $this->actingAs($admin)->from('/admin/avis')->post('/admin/avis/lot', ['ids' => [1, 2], 'action' => 'published'])
+            ->assertRedirect('/admin/avis')
+            ->assertSessionHas('success', '2 avis approuvés.');
+    }
+
     #[DataProvider('publicPages')]
     public function test_public_pages_render_for_guests(string $uri): void
     {

@@ -13,7 +13,7 @@
         </div>
     @endif
 
-    <div class="overflow-x-auto">
+    <div class="relative overflow-x-auto">
         <table class="nt-table">
             @if ($caption)
                 <caption class="sr-only">{{ $caption }}</caption>

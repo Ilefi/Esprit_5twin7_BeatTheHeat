@@ -10,7 +10,7 @@
 @endsection
 
 @section('account_content')
-    <nav aria-label="Filtrer par statut" class="-mx-4 mb-6 overflow-x-auto px-4">
+    <nav aria-label="Filtrer par statut" class="relative -mx-4 mb-6 overflow-x-auto px-4">
         <ul class="flex min-w-max gap-2">
             <li><a href="{{ route('account.reports.index') }}" @class(['nt-btn nt-btn-sm', 'nt-btn-primary' => ! request('statut'), 'nt-btn-outline' => request('statut')])>Tous ({{ $total }})</a></li>
             @foreach ($statuses as $value => $label)

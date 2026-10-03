@@ -31,7 +31,7 @@
                             <x-status-badge type="role" :value="auth()->user()->role ?? 'consumer'" />
                         </div>
                     </div>
-                    <nav class="mt-5 -mx-2 flex gap-1 overflow-x-auto border-t pt-4 lg:flex-col" aria-label="Rubriques">
+                    <nav class="relative mt-5 -mx-2 flex gap-1 overflow-x-auto border-t pt-4 lg:flex-col" aria-label="Rubriques">
                         @foreach ($accountLinks as [$label, $route, $pattern, $icon])
                             <a href="{{ route($route) }}" @if (request()->routeIs($pattern)) aria-current="page" @endif
                                @class([

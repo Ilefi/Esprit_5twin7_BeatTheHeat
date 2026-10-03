@@ -65,7 +65,7 @@
                 <p class="nt-eyebrow mb-3">Le calcul</p>
                 <h2 id="formula-title" class="text-3xl font-bold">Un score transparent et reproductible</h2>
                 <p class="mt-4 text-muted-foreground">Chaque produit part de 100 points. Les pénalités sont plafonnées pour qu'aucun indicateur ne domine à lui seul ; la saisonnalité ajoute ou retire 5 points.</p>
-                <pre class="mt-6 overflow-x-auto rounded-lg bg-earth p-5 font-mono text-sm leading-relaxed text-earth-foreground"><code>score = 100
+                <pre class="relative mt-6 overflow-x-auto rounded-lg bg-earth p-5 font-mono text-sm leading-relaxed text-earth-foreground"><code>score = 100
   − min(40, CO₂e × 6)
   − min(20, eau ÷ 150)
   − min(20, distance ÷ 100)
