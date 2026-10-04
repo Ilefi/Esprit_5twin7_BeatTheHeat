@@ -82,7 +82,7 @@
                 <x-slot:header><h2 class="text-base font-semibold">Historique de modération</h2></x-slot:header>
                 <x-nt.timeline>
                     @foreach ($review->history as $entry)
-                        <x-nt.timeline-item icon="fa-clock-rotate-left" :tone="$loop->last ? 'primary' : 'muted'" :title="$entry->label" :time="$entry->at->translatedFormat('d M Y, H:i').' · '.$entry->by">
+                        <x-nt.timeline-item icon="fa-clock-rotate-left" :tone="$loop->last ? 'primary' : 'muted'" :title="$entry->label" :time="$entry->created_at->translatedFormat('d M Y, H:i').' · '.$entry->author">
                             {{ $entry->note }}
                         </x-nt.timeline-item>
                     @endforeach

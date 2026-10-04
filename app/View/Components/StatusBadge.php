@@ -74,6 +74,11 @@ class StatusBadge extends Component
             'actor' => ['Acteur', 'gold', 'fa-tractor'],
             'consumer' => ['Consommateur', 'primary', 'fa-user'],
         ],
+        'report_target' => [
+            'product' => ['Produit', 'primary', 'fa-basket-shopping'],
+            'actor' => ['Acteur', 'earth', 'fa-industry'],
+            'certification' => ['Certification', 'gold', 'fa-award'],
+        ],
         'actor_type' => [
             'producer' => ['Producteur', 'primary', 'fa-tractor'],
             'processor' => ['Transformateur', 'earth', 'fa-industry'],

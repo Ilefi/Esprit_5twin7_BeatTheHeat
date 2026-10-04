@@ -1,5 +1,3 @@
-@php $notifications = \App\Support\DemoData::notifications(); @endphp
-
 <header class="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-surface/95 px-4 backdrop-blur sm:px-6 lg:px-8">
     <button type="button" class="nt-btn nt-btn-ghost nt-btn-icon lg:hidden" x-on:click="sidebar = true"
             aria-label="Ouvrir le menu" aria-controls="admin-sidebar" :aria-expanded="sidebar.toString()">

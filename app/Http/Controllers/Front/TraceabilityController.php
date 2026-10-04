@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Batch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -12,9 +12,9 @@ class TraceabilityController extends Controller
 {
     public function index(Request $request): View|RedirectResponse
     {
-        // TODO(Gestion 2): replace DemoData with Batch::where('code', $code)->first()
         if ($code = trim((string) $request->query('code'))) {
-            $batch = DemoData::batches()->first(fn ($b) => strcasecmp($b->code, $code) === 0);
+            // Lot codes are stored upper-case (NT-2026-OLV-0412).
+            $batch = Batch::where('code', mb_strtoupper($code))->first();
 
             return $batch
                 ? redirect()->route('front.traceability.batch', $batch->code)
@@ -22,15 +22,14 @@ class TraceabilityController extends Controller
         }
 
         return view('front.traceability.index', [
-            'batches' => DemoData::batches(),
+            'batches' => Batch::with(['product.impact', 'product.category', 'steps'])->orderBy('id')->get(),
         ]);
     }
 
     public function show(string $code): View
     {
-        // TODO(Gestion 2): replace DemoData with Batch::where('code', $code)->with('steps.actor', 'product')->firstOrFail()
         return view('front.traceability.show', [
-            'batch' => DemoData::batch($code),
+            'batch' => Batch::where('code', mb_strtoupper($code))->with(['product.impact', 'product.category', 'steps.actor'])->firstOrFail(),
         ]);
     }
 }

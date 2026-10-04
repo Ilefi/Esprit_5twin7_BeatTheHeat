@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\User;
 use App\View\Components\StatusBadge;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -13,34 +14,34 @@ class UserController extends Controller
 {
     public function index(Request $request): View
     {
-        // TODO(shared): replace DemoData with User::query()->filter($request)->paginate()
-        $users = DemoData::users();
+        $role = (string) $request->query('role');
+        $search = trim((string) $request->query('q'));
 
-        if (array_key_exists($role = (string) $request->query('role'), StatusBadge::options('role'))) {
-            $users = $users->where('role', $role);
-        }
-        if ($search = trim((string) $request->query('q'))) {
-            $users = $users->filter(fn ($u) => str_contains(mb_strtolower($u->name.' '.$u->email), mb_strtolower($search)));
-        }
+        $users = User::withCount(['reviews', 'reports'])
+            ->when(array_key_exists($role, StatusBadge::options('role')), fn (Builder $query) => $query->where('role', $role))
+            ->when($search, fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")))
+            ->orderBy('id');
 
         return view('admin.users.index', [
-            'users' => DemoData::paginate($users->values(), 10),
+            'users' => $users->paginate(10)->withQueryString(),
             'roles' => StatusBadge::options('role'),
-            'counts' => DemoData::users()->countBy('role'),
+            'counts' => User::pluck('role')->countBy(),
         ]);
     }
 
     public function edit(int $user): View
     {
         return view('admin.users.edit', [
-            'user' => DemoData::user($user),
+            'user' => User::findOrFail($user),
             'roles' => StatusBadge::options('role'),
         ]);
     }
 
     public function update(Request $request, int $user): RedirectResponse
     {
-        $user = DemoData::user($user);
+        $user = User::findOrFail($user);
         $data = $request->validate(['role' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('role')))]]);
 
         // TODO(shared): User::findOrFail($id)->forceFill(['role' => $data['role']])->save()

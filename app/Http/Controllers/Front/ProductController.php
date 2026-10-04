@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Category;
+use App\Models\Certification;
+use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -19,38 +22,32 @@ class ProductController extends Controller
 
     public function index(Request $request): View
     {
-        // TODO(Gestion 1): replace DemoData with Eloquent (Product::query()->with(...)->filter($request)->paginate())
-        $products = DemoData::products()->where('status', 'published');
+        $search = trim((string) $request->query('q'));
+        $grades = array_intersect((array) $request->query('eco', []), ['A', 'B', 'C', 'D', 'E']);
 
-        if ($search = trim((string) $request->query('q'))) {
-            $products = $products->filter(fn ($p) => str_contains(mb_strtolower($p->name.' '.$p->producer->name.' '.$p->region), mb_strtolower($search)));
-        }
-        if ($category = $request->query('categorie')) {
-            $products = $products->filter(fn ($p) => $p->category->slug === $category);
-        }
-        if ($certification = $request->query('certification')) {
-            $products = $products->filter(fn ($p) => $p->certifications->contains('slug', $certification));
-        }
-        if ($eco = (array) $request->query('eco', [])) {
-            $products = $products->filter(fn ($p) => in_array($p->eco_score, $eco, true));
-        }
-        if ($region = $request->query('region')) {
-            $products = $products->where('region', $region);
-        }
+        $products = Product::published()->forCards()
+            ->when($search, fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('region', 'like', "%{$search}%")
+                ->orWhereHas('producer', fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))))
+            ->when($request->query('categorie'), fn (Builder $query, $slug) => $query->whereHas('category', fn (Builder $query) => $query->where('slug', $slug)))
+            ->when($request->query('certification'), fn (Builder $query, $slug) => $query->whereHas('certifications', fn (Builder $query) => $query->where('slug', $slug)))
+            ->when($grades, fn (Builder $query) => $query->whereHas('impact', fn (Builder $query) => $query->whereIn('eco_score', $grades)))
+            ->when($request->query('region'), fn (Builder $query, $region) => $query->where('region', $region));
 
-        $products = match ($request->query('tri', 'popular')) {
-            'eco' => $products->sortByDesc(fn ($p) => $p->impact->eco_points),
-            'name' => $products->sortBy('name'),
-            'price_asc' => $products->sortBy('price'),
-            'price_desc' => $products->sortByDesc('price'),
-            default => $products->sortByDesc('rating_avg'),
+        match ($request->query('tri', 'popular')) {
+            'eco' => $products->orderByEcoPoints(),
+            'name' => $products->orderBy('name'),
+            'price_asc' => $products->orderBy('price'),
+            'price_desc' => $products->orderByDesc('price'),
+            default => $products->orderByDesc('rating_avg'),
         };
 
         return view('front.products.index', [
-            'products' => DemoData::paginate($products->values(), 9),
-            'categories' => DemoData::categories(),
-            'certifications' => DemoData::certifications(),
-            'regions' => DemoData::products()->pluck('region')->unique()->sort()->values(),
+            'products' => $products->orderBy('id')->paginate(9)->withQueryString(),
+            'categories' => Category::withCount('products')->get(),
+            'certifications' => Certification::withCount(['products', 'actors'])->get(),
+            'regions' => Product::distinct()->orderBy('region')->pluck('region'),
             'sorts' => self::SORTS,
             'layout' => $request->query('vue') === 'liste' ? 'list' : 'grid',
         ]);
@@ -58,9 +55,12 @@ class ProductController extends Controller
 
     public function show(Request $request, string $slug): View
     {
-        // TODO(Gestion 1): replace DemoData with Product::where('slug', $slug)->with(...)->firstOrFail()
-        $product = DemoData::product($slug);
-        $allReviews = DemoData::reviewsFor($product);
+        $product = Product::where('slug', $slug)
+            ->with(['category', 'producer', 'processor', 'certifications', 'impact'])
+            ->withRating()
+            ->firstOrFail();
+
+        $allReviews = $product->reviews()->published()->with('user')->get()->each->setRelation('product', $product);
 
         // TODO(Gestion 4): move review filters into a query scope
         $reviews = $allReviews;
@@ -81,7 +81,7 @@ class ProductController extends Controller
 
         return view('front.products.show', [
             'product' => $product,
-            'batch' => DemoData::batches()->first(fn ($b) => $b->product->id === $product->id),
+            'batch' => $product->firstBatch()->with('steps.actor')->first(),
             'reviews' => $reviews->values(),
             'reviewStats' => (object) [
                 'average' => $allReviews->avg('rating') ?? 0,
@@ -91,10 +91,12 @@ class ProductController extends Controller
                 'transparency' => $allReviews->avg('transparency_rating') ?? 0,
                 'value' => $allReviews->avg('value_rating') ?? 0,
             ],
-            'similarProducts' => DemoData::products()
-                ->where('status', 'published')
-                ->filter(fn ($p) => $p->id !== $product->id && ($p->category->id === $product->category->id || $p->producer->id === $product->producer->id))
-                ->take(4)->values(),
+            'similarProducts' => Product::published()->forCards()
+                ->whereKeyNot($product->id)
+                ->where(fn (Builder $query) => $query->where('category_id', $product->category_id)->orWhere('producer_id', $product->producer_id))
+                ->orderBy('id')
+                ->take(4)
+                ->get(),
         ]);
     }
 }

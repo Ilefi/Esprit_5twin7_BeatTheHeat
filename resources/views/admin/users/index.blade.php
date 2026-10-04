@@ -33,7 +33,7 @@
                     <td>{{ $user->reviews_count }}</td>
                     <td>{{ $user->reports_count }}</td>
                     <td class="whitespace-nowrap text-xs text-muted-foreground">{{ $user->created_at->translatedFormat('d M Y') }}</td>
-                    <td class="whitespace-nowrap text-xs text-muted-foreground">{{ $user->last_login_at->diffForHumans() }}</td>
+                    <td class="whitespace-nowrap text-xs text-muted-foreground">{{ $user->last_login_at?->diffForHumans() ?? 'Jamais' }}</td>
                     <td><div class="flex justify-end"><a href="{{ route('admin.users.edit', $user->id) }}" class="nt-btn nt-btn-outline nt-btn-sm" aria-label="Modifier le rôle de {{ $user->name }}"><i class="fa-solid fa-user-pen" aria-hidden="true"></i> Rôle</a></div></td>
                 </tr>
             @empty

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Batch;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -11,7 +11,7 @@ class BatchStepController extends Controller
 {
     public function store(Request $request, int $batch): RedirectResponse
     {
-        $batch = DemoData::batchById($batch);
+        $batch = Batch::findOrFail($batch);
         $data = $request->validateWithBag('step', $this->rules());
 
         // TODO(Gestion 2): $batch->steps()->create($data)
@@ -20,7 +20,7 @@ class BatchStepController extends Controller
 
     public function update(Request $request, int $batch, int $step): RedirectResponse
     {
-        $batch = DemoData::batchById($batch);
+        $batch = Batch::findOrFail($batch);
         $data = $request->validateWithBag('step'.$step, $this->rules());
 
         return redirect()->route('admin.batches.show', $batch->id)->with('success', "Étape « {$data['title']} » mise à jour.");
@@ -28,16 +28,16 @@ class BatchStepController extends Controller
 
     public function destroy(int $batch, int $step): RedirectResponse
     {
-        $batch = DemoData::batchById($batch);
-        $step = $batch->steps->firstWhere('id', $step) ?? abort(404);
+        $batch = Batch::findOrFail($batch);
+        $step = $batch->steps()->findOrFail($step);
 
         return redirect()->route('admin.batches.show', $batch->id)->with('success', "Étape « {$step->title} » supprimée.");
     }
 
     public function move(Request $request, int $batch, int $step): RedirectResponse
     {
-        $batch = DemoData::batchById($batch);
-        $step = $batch->steps->firstWhere('id', $step) ?? abort(404);
+        $batch = Batch::findOrFail($batch);
+        $step = $batch->steps()->findOrFail($step);
         $request->validate(['direction' => ['required', 'in:up,down']]);
 
         // TODO(Gestion 2): swap positions with the neighbouring step

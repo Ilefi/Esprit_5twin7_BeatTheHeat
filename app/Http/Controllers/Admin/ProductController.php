@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Actor;
+use App\Models\Category;
+use App\Models\Certification;
+use App\Models\Product;
 use App\View\Components\StatusBadge;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -13,25 +17,22 @@ class ProductController extends Controller
 {
     public function index(Request $request): View
     {
-        // TODO(Gestion 1): replace DemoData with Product::with(...)->filter($request)->paginate()
-        $products = DemoData::products();
+        $search = trim((string) $request->query('q'));
+        $status = (string) $request->query('statut');
+        $eco = (string) $request->query('eco');
 
-        if ($search = trim((string) $request->query('q'))) {
-            $products = $products->filter(fn ($p) => str_contains(mb_strtolower($p->name.' '.$p->producer->name), mb_strtolower($search)));
-        }
-        if ($category = (int) $request->query('categorie')) {
-            $products = $products->filter(fn ($p) => $p->category->id === $category);
-        }
-        if (array_key_exists($status = (string) $request->query('statut'), StatusBadge::options('product'))) {
-            $products = $products->where('status', $status);
-        }
-        if (in_array($eco = (string) $request->query('eco'), ['A', 'B', 'C', 'D', 'E'], true)) {
-            $products = $products->where('eco_score', $eco);
-        }
+        $products = Product::with(['category', 'producer', 'certifications', 'impact'])
+            ->when($search, fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->where('name', 'like', "%{$search}%")
+                ->orWhereHas('producer', fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))))
+            ->when((int) $request->query('categorie'), fn (Builder $query, int $category) => $query->where('category_id', $category))
+            ->when(array_key_exists($status, StatusBadge::options('product')), fn (Builder $query) => $query->where('status', $status))
+            ->when(in_array($eco, ['A', 'B', 'C', 'D', 'E'], true), fn (Builder $query) => $query->whereHas('impact', fn (Builder $query) => $query->where('eco_score', $eco)))
+            ->orderBy('id');
 
         return view('admin.products.index', [
-            'products' => DemoData::paginate($products->values(), 8),
-            'categories' => DemoData::categories()->pluck('name', 'id')->all(),
+            'products' => $products->paginate(8)->withQueryString(),
+            'categories' => Category::orderBy('id')->pluck('name', 'id')->all(),
             'statuses' => StatusBadge::options('product'),
         ]);
     }
@@ -51,24 +52,24 @@ class ProductController extends Controller
 
     public function show(int $product): View
     {
-        $product = DemoData::productById($product);
+        $product = Product::with(['category', 'producer', 'processor', 'certifications', 'impact'])->withRating()->findOrFail($product);
 
         return view('admin.products.show', [
             'product' => $product,
-            'batches' => DemoData::batches()->filter(fn ($b) => $b->product->id === $product->id)->values(),
-            'reviews' => DemoData::reviews()->filter(fn ($r) => $r->product->id === $product->id)->sortByDesc('created_at')->take(4)->values(),
-            'reports' => DemoData::reports()->filter(fn ($r) => $r->target->type === 'product' && $r->target->id === $product->id)->values(),
+            'batches' => $product->batches()->with('steps')->orderBy('id')->get(),
+            'reviews' => $product->reviews()->with('user')->latest()->take(4)->get(),
+            'reports' => $product->reports()->withTarget()->orderBy('id')->get(),
         ]);
     }
 
     public function edit(int $product): View
     {
-        return view('admin.products.edit', $this->formData() + ['product' => DemoData::productById($product)]);
+        return view('admin.products.edit', $this->formData() + ['product' => Product::with(['category', 'producer', 'certifications'])->findOrFail($product)]);
     }
 
     public function update(Request $request, int $product): RedirectResponse
     {
-        DemoData::productById($product);
+        Product::findOrFail($product);
         $data = $this->validated($request);
 
         // TODO(Gestion 1): $product->update($data) + sync certifications
@@ -77,7 +78,7 @@ class ProductController extends Controller
 
     public function destroy(int $product): RedirectResponse
     {
-        $product = DemoData::productById($product);
+        $product = Product::findOrFail($product);
 
         // TODO(Gestion 1): $product->delete()
         return redirect()->route('admin.products.index')->with('success', "Le produit « {$product->name} » a été supprimé.");
@@ -86,9 +87,9 @@ class ProductController extends Controller
     private function formData(): array
     {
         return [
-            'categories' => DemoData::categories()->pluck('name', 'id')->all(),
-            'producers' => DemoData::actors()->where('type', 'producer')->pluck('name', 'id')->all(),
-            'certifications' => DemoData::certifications(),
+            'categories' => Category::orderBy('id')->pluck('name', 'id')->all(),
+            'producers' => Actor::where('type', 'producer')->orderBy('id')->pluck('name', 'id')->all(),
+            'certifications' => Certification::orderBy('id')->get(),
             'statuses' => StatusBadge::options('product'),
         ];
     }

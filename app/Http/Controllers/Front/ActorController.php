@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Actor;
+use App\Models\Product;
 use App\View\Components\StatusBadge;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -12,32 +14,36 @@ class ActorController extends Controller
 {
     public function index(Request $request): View
     {
-        // TODO(Gestion 2): replace DemoData with Actor::query()->filter($request)->paginate()
-        $actors = DemoData::actors();
+        $types = StatusBadge::options('actor_type');
+        $type = (string) $request->query('type');
+        $search = trim((string) $request->query('q'));
 
-        if (array_key_exists($type = (string) $request->query('type'), StatusBadge::options('actor_type'))) {
-            $actors = $actors->where('type', $type);
-        }
-        if ($search = trim((string) $request->query('q'))) {
-            $actors = $actors->filter(fn ($a) => str_contains(mb_strtolower($a->name.' '.$a->city.' '.$a->region), mb_strtolower($search)));
-        }
+        $actors = Actor::withStats()->with('certifications')
+            ->when(array_key_exists($type, $types), fn (Builder $query) => $query->where('type', $type))
+            ->when($search, fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('city', 'like', "%{$search}%")
+                ->orWhere('region', 'like', "%{$search}%")))
+            ->orderBy('id');
 
         return view('front.actors.index', [
-            'actors' => DemoData::paginate($actors->values(), 9),
-            'types' => StatusBadge::options('actor_type'),
-            'counts' => DemoData::actors()->countBy('type'),
+            'actors' => $actors->paginate(9)->withQueryString(),
+            'types' => $types,
+            'counts' => Actor::pluck('type')->countBy(),
         ]);
     }
 
     public function show(string $slug): View
     {
-        // TODO(Gestion 2): replace DemoData with Actor::where('slug', $slug)->with(...)->firstOrFail()
-        $actor = DemoData::actor($slug);
+        $actor = Actor::where('slug', $slug)->withStats()->with('certifications')->firstOrFail();
 
         return view('front.actors.show', [
             'actor' => $actor,
-            'products' => DemoData::productsFor($actor)->where('status', 'published')->values(),
-            'batches' => DemoData::batchesFor($actor),
+            'products' => Product::published()->forCards()
+                ->where(fn (Builder $query) => $query->where('producer_id', $actor->id)->orWhere('processor_id', $actor->id))
+                ->orderBy('id')
+                ->get(),
+            'batches' => $actor->batches()->with(['product', 'steps'])->orderBy('id')->get(),
         ]);
     }
 }

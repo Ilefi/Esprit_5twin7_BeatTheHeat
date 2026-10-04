@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\EmissionFactor;
+use App\Models\Impact;
+use App\Models\Product;
 use App\Support\EcoScore;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -13,16 +16,16 @@ class ImpactController extends Controller
 {
     public function index(Request $request): View
     {
-        // TODO(Gestion 3): replace DemoData with Impact::with('product')->filter($request)->paginate()
-        $products = DemoData::products();
+        $eco = (string) $request->query('eco');
 
-        if (in_array($eco = (string) $request->query('eco'), ['A', 'B', 'C', 'D', 'E'], true)) {
-            $products = $products->where('eco_score', $eco);
-        }
+        $products = Product::whereHas('impact', fn (Builder $query) => $query->when(
+            in_array($eco, ['A', 'B', 'C', 'D', 'E'], true),
+            fn (Builder $query) => $query->where('eco_score', $eco),
+        ))->with(['impact', 'category'])->orderByEcoPoints()->orderBy('id');
 
         return view('admin.impacts.index', [
-            'products' => DemoData::paginate($products->sortByDesc(fn ($p) => $p->impact->eco_points)->values(), 8),
-            'distribution' => DemoData::products()->countBy('eco_score'),
+            'products' => $products->paginate(8)->withQueryString(),
+            'distribution' => Impact::pluck('eco_score')->countBy(),
             'packaging' => EcoScore::PACKAGING_LABELS,
         ]);
     }
@@ -42,12 +45,12 @@ class ImpactController extends Controller
 
     public function edit(int $impact): View
     {
-        return view('admin.impacts.edit', $this->formData() + ['product' => DemoData::productById($impact)]);
+        return view('admin.impacts.edit', $this->formData() + ['product' => Product::with('impact')->findOrFail($impact)]);
     }
 
     public function update(Request $request, int $impact): RedirectResponse
     {
-        $product = DemoData::productById($impact);
+        $product = Product::findOrFail($impact);
         $grade = $this->grade($this->validated($request));
 
         return redirect()->route('admin.impacts.index')->with('success', "Empreinte de « {$product->name} » mise à jour — éco-score : {$grade}.");
@@ -55,23 +58,22 @@ class ImpactController extends Controller
 
     public function destroy(int $impact): RedirectResponse
     {
-        $product = DemoData::productById($impact);
+        $product = Product::findOrFail($impact);
 
         return redirect()->route('admin.impacts.index')->with('success', "Empreinte de « {$product->name} » supprimée.");
     }
 
     public function factors(): View
     {
-        // TODO(Gestion 3): replace DemoData with EmissionFactor::orderBy('category')->get()
         return view('admin.impacts.factors', [
-            'factors' => DemoData::emissionFactors()->groupBy('category'),
+            'factors' => EmissionFactor::orderBy('id')->get()->groupBy('category'),
         ]);
     }
 
     private function formData(): array
     {
         return [
-            'products' => DemoData::products()->pluck('name', 'id')->all(),
+            'products' => Product::orderBy('id')->pluck('name', 'id')->all(),
             'packaging' => EcoScore::PACKAGING_LABELS,
         ];
     }

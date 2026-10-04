@@ -3,29 +3,27 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Certification;
 use Illuminate\View\View;
 
 class CertificationController extends Controller
 {
     public function index(): View
     {
-        // TODO(Gestion 1): replace DemoData with Certification::withCount('products')->get()
         return view('front.certifications.index', [
-            'certifications' => DemoData::certifications(),
+            'certifications' => Certification::withCount(['products', 'actors'])->get(),
         ]);
     }
 
     public function show(string $slug): View
     {
-        // TODO(Gestion 1): replace DemoData with Certification::where('slug', $slug)->with('products')->firstOrFail()
-        $certification = DemoData::certification($slug);
+        $certification = Certification::where('slug', $slug)->withCount(['products', 'actors'])->firstOrFail();
 
         return view('front.certifications.show', [
             'certification' => $certification,
-            'products' => DemoData::products()->filter(fn ($p) => $p->status === 'published' && $p->certifications->contains('id', $certification->id))->values(),
-            'actors' => DemoData::actors()->filter(fn ($a) => $a->certifications->contains('id', $certification->id))->values(),
-            'others' => DemoData::certifications()->where('id', '!=', $certification->id)->values(),
+            'products' => $certification->products()->published()->forCards()->orderBy('products.id')->get(),
+            'actors' => $certification->actors()->withStats()->with('certifications')->orderBy('actors.id')->get(),
+            'others' => Certification::whereKeyNot($certification->id)->withCount(['products', 'actors'])->get(),
         ]);
     }
 }

@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Certification;
+use App\Models\CertificationVerification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -21,10 +22,9 @@ class CertificationController extends Controller
 
     public function index(): View
     {
-        // TODO(Gestion 1): replace DemoData with Certification::withCount('products')->get()
         return view('admin.certifications.index', [
-            'certifications' => DemoData::certifications(),
-            'pendingCount' => DemoData::verifications()->where('status', 'pending')->count(),
+            'certifications' => Certification::withCount(['products', 'actors'])->get(),
+            'pendingCount' => CertificationVerification::where('status', 'pending')->count(),
         ]);
     }
 
@@ -43,14 +43,14 @@ class CertificationController extends Controller
     public function edit(int $certification): View
     {
         return view('admin.certifications.edit', [
-            'certification' => DemoData::certificationById($certification),
+            'certification' => Certification::findOrFail($certification),
             'types' => self::TYPES,
         ]);
     }
 
     public function update(Request $request, int $certification): RedirectResponse
     {
-        DemoData::certificationById($certification);
+        Certification::findOrFail($certification);
         $data = $this->validated($request);
 
         return redirect()->route('admin.certifications.index')->with('success', "La certification « {$data['name']} » a été mise à jour.");
@@ -58,7 +58,7 @@ class CertificationController extends Controller
 
     public function destroy(int $certification): RedirectResponse
     {
-        $certification = DemoData::certificationById($certification);
+        $certification = Certification::findOrFail($certification);
 
         return redirect()->route('admin.certifications.index')->with('success', "La certification « {$certification->name} » a été supprimée.");
     }

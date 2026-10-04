@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Report;
+use App\Models\User;
 use App\View\Components\StatusBadge;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,32 +17,30 @@ class ReportController extends Controller
 
     public function index(Request $request): View
     {
-        // TODO(Gestion 4): replace DemoData with Report::with('target', 'assignee')->filter($request)->paginate()
-        $reports = DemoData::reports();
         $types = StatusBadge::options('report_type');
         $statuses = StatusBadge::options('report');
         $priorities = StatusBadge::options('priority');
+        $type = (string) $request->query('type');
+        $status = (string) $request->query('statut');
+        $priority = (string) $request->query('priorite');
+        $period = (string) $request->query('periode');
+        $kanban = $request->query('vue') === 'kanban';
 
-        if (array_key_exists($type = (string) $request->query('type'), $types)) {
-            $reports = $reports->where('type', $type);
-        }
-        if (array_key_exists($status = (string) $request->query('statut'), $statuses)) {
-            $reports = $reports->where('status', $status);
-        }
-        if (array_key_exists($priority = (string) $request->query('priorite'), $priorities)) {
-            $reports = $reports->where('priority', $priority);
-        }
-        if (array_key_exists($period = (string) $request->query('periode'), self::PERIODS)) {
-            $reports = $reports->filter(fn ($r) => $r->created_at->gte(now()->subDays((int) $period)));
-        }
+        $reports = Report::withTarget()->with('assignee')
+            ->when(array_key_exists($type, $types), fn (Builder $query) => $query->where('type', $type))
+            ->when(array_key_exists($status, $statuses), fn (Builder $query) => $query->where('status', $status))
+            ->when(array_key_exists($priority, $priorities), fn (Builder $query) => $query->where('priority', $priority))
+            ->when(array_key_exists($period, self::PERIODS), fn (Builder $query) => $query->where('created_at', '>=', now()->subDays((int) $period)))
+            // Most urgent first, then newest
+            ->orderByRaw("case priority when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end")
+            ->latest();
 
-        $priorityOrder = ['critical' => 0, 'high' => 1, 'medium' => 2, 'low' => 3];
-        $reports = $reports->sortBy([fn ($a, $b) => $priorityOrder[$a->priority] <=> $priorityOrder[$b->priority], fn ($a, $b) => $b->created_at <=> $a->created_at])->values();
+        $reports = $kanban ? $reports->get() : $reports->paginate(10)->withQueryString();
 
         return view('admin.reports.index', [
-            'reports' => $request->query('vue') === 'kanban' ? $reports : DemoData::paginate($reports, 10),
-            'columns' => $request->query('vue') === 'kanban' ? $reports->groupBy('status') : null,
-            'view' => $request->query('vue') === 'kanban' ? 'kanban' : 'table',
+            'reports' => $reports,
+            'columns' => $kanban ? $reports->groupBy('status') : null,
+            'view' => $kanban ? 'kanban' : 'table',
             'types' => $types,
             'statuses' => $statuses,
             'priorities' => $priorities,
@@ -51,16 +51,19 @@ class ReportController extends Controller
     public function show(string $ref): View
     {
         return view('admin.reports.show', [
-            'report' => DemoData::report($ref),
+            'report' => Report::where('ref', $ref)
+                ->withTarget()
+                ->with(['reporter' => fn ($query) => $query->withCount('reports'), 'assignee', 'evidence', 'messages.user', 'notes.user', 'history'])
+                ->firstOrFail(),
             'statuses' => StatusBadge::options('report'),
             'priorities' => StatusBadge::options('priority'),
-            'moderators' => DemoData::users()->where('role', 'admin')->pluck('name', 'id')->all(),
+            'moderators' => User::where('role', 'admin')->orderBy('id')->pluck('name', 'id')->all(),
         ]);
     }
 
     public function update(Request $request, string $ref): RedirectResponse
     {
-        $report = DemoData::report($ref);
+        $report = Report::where('ref', $ref)->firstOrFail();
 
         $request->validate([
             'status' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('report')))],
@@ -75,7 +78,7 @@ class ReportController extends Controller
 
     public function status(Request $request, string $ref): RedirectResponse
     {
-        $report = DemoData::report($ref);
+        $report = Report::where('ref', $ref)->firstOrFail();
         $data = $request->validate(['status' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('report')))]]);
 
         return back()->with('success', "{$report->ref} → ".StatusBadge::labelFor('report', $data['status']).'.');
@@ -83,7 +86,7 @@ class ReportController extends Controller
 
     public function note(Request $request, string $ref): RedirectResponse
     {
-        $report = DemoData::report($ref);
+        $report = Report::where('ref', $ref)->firstOrFail();
         $request->validateWithBag('note', ['note' => ['required', 'string', 'min:3', 'max:1000']]);
 
         return redirect()->route('admin.reports.show', $report->ref)->with('success', 'Note interne ajoutée.');
@@ -91,7 +94,7 @@ class ReportController extends Controller
 
     public function reply(Request $request, string $ref): RedirectResponse
     {
-        $report = DemoData::report($ref);
+        $report = Report::where('ref', $ref)->firstOrFail();
         $request->validateWithBag('reply', ['reply' => ['required', 'string', 'min:10', 'max:2000']]);
 
         return redirect()->route('admin.reports.show', $report->ref)->with('success', "Réponse envoyée à {$report->reporter->name}.");

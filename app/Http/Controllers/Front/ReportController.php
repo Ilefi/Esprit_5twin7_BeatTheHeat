@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Actor;
+use App\Models\Certification;
+use App\Models\Product;
+use App\Models\Report;
 use App\View\Components\StatusBadge;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,11 +34,10 @@ class ReportController extends Controller
 
     public function create(Request $request): View
     {
-        // TODO(Gestion 4): targets come from Product / Actor / Certification models
         $targets = [
-            'product' => DemoData::products()->where('status', 'published')->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'subtitle' => $p->producer->name])->values(),
-            'actor' => DemoData::actors()->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'subtitle' => $a->city])->values(),
-            'certification' => DemoData::certifications()->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'subtitle' => $c->issuer])->values(),
+            'product' => Product::published()->with('producer')->orderBy('id')->get()->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'subtitle' => $p->producer->name]),
+            'actor' => Actor::orderBy('id')->get()->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'subtitle' => $a->city]),
+            'certification' => Certification::orderBy('id')->get()->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'subtitle' => $c->issuer]),
         ];
 
         $targetType = old('target_type', $request->query('cible', 'product'));
@@ -71,7 +73,7 @@ class ReportController extends Controller
         ]);
 
         // TODO(Gestion 4): Report::create([...]) + store evidence files
-        $ref = sprintf('SIG-2026-%04d', DemoData::reports()->count() + 1);
+        $ref = Report::nextRef();
 
         return redirect()->route('account.reports.index')
             ->with('success', "Votre signalement {$ref} a bien été enregistré. Vous serez notifié à chaque étape de son traitement.");

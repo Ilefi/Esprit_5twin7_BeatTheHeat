@@ -8,7 +8,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * Smoke test for every GET page of the UI template (parameterized routes use DemoData slugs).
+ * Smoke test for every GET page of the UI template, on the seeded demo dataset (parameterized routes use seeded slugs, ids and refs).
  */
 class TemplatePagesTest extends TestCase
 {
@@ -157,7 +157,13 @@ class TemplatePagesTest extends TestCase
     #[DataProvider('protectedPages')]
     public function test_protected_pages_render_for_consumers(string $uri): void
     {
-        $this->actingAs(User::factory()->create())->get($uri)->assertOk();
+        // The seeded consumer owns the reports opened below (SIG-2026-0004, SIG-2026-0016).
+        $this->actingAs(User::where('email', 'consumer@nutritrace.tn')->firstOrFail())->get($uri)->assertOk();
+    }
+
+    public function test_account_pages_only_show_the_users_own_records(): void
+    {
+        $this->actingAs(User::factory()->create())->get('/mon-espace/signalements/SIG-2026-0004')->assertNotFound();
     }
 
     public function test_unknown_slugs_return_404(): void

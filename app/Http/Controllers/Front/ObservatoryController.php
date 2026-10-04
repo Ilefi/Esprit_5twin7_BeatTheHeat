@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Report;
 use App\View\Components\StatusBadge;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -12,28 +13,24 @@ class ObservatoryController extends Controller
 {
     public function __invoke(Request $request): View
     {
-        // TODO(Gestion 4): replace DemoData with Report::public()->filter($request)->paginate()
-        $reports = DemoData::reports();
         $types = StatusBadge::options('report_type');
+        $type = (string) $request->query('type');
+        $issue = (string) $request->query('issue');
 
-        $public = $reports->whereIn('status', ['confirmed', 'resolved']);
-        if (array_key_exists($type = (string) $request->query('type'), $types)) {
-            $public = $public->where('type', $type);
-        }
-        if (in_array($status = (string) $request->query('issue'), ['confirmed', 'resolved'], true)) {
-            $public = $public->where('status', $status);
-        }
+        $publicReports = Report::whereIn('status', ['confirmed', 'resolved'])->withTarget()
+            ->when(array_key_exists($type, $types), fn (Builder $query) => $query->where('type', $type))
+            ->when(in_array($issue, ['confirmed', 'resolved'], true), fn (Builder $query) => $query->where('status', $issue))
+            ->latest();
 
-        $byType = $reports->countBy('type');
-        $closed = $reports->whereIn('status', ['confirmed', 'rejected', 'resolved']);
+        $byType = Report::pluck('type')->countBy();
 
         return view('front.observatory', [
-            'publicReports' => DemoData::paginate($public->sortByDesc('created_at')->values(), 6),
+            'publicReports' => $publicReports->paginate(6)->withQueryString(),
             'types' => $types,
             'kpis' => [
-                ['icon' => 'fa-flag', 'value' => $reports->count(), 'label' => 'signalements reçus', 'tone' => 'info'],
-                ['icon' => 'fa-circle-exclamation', 'value' => $reports->where('status', 'confirmed')->count(), 'label' => 'allégations jugées fondées', 'tone' => 'danger'],
-                ['icon' => 'fa-check-double', 'value' => $closed->count(), 'label' => 'dossiers clôturés', 'tone' => 'primary'],
+                ['icon' => 'fa-flag', 'value' => Report::count(), 'label' => 'signalements reçus', 'tone' => 'info'],
+                ['icon' => 'fa-circle-exclamation', 'value' => Report::where('status', 'confirmed')->count(), 'label' => 'allégations jugées fondées', 'tone' => 'danger'],
+                ['icon' => 'fa-check-double', 'value' => Report::whereIn('status', Report::CLOSED_STATUSES)->count(), 'label' => 'dossiers clôturés', 'tone' => 'primary'],
                 ['icon' => 'fa-stopwatch', 'value' => '6 j', 'label' => 'délai moyen de traitement', 'tone' => 'gold'],
             ],
             'chart' => [

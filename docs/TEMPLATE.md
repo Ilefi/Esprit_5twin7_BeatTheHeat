@@ -10,10 +10,13 @@ Ce document décrit le template UI livré : architecture Blade, système de desi
 ```bash
 composer install && npm install
 cp .env.example .env && php artisan key:generate
-php artisan migrate --seed      # crée la base SQLite + 3 comptes de démo
+# Démarrer MySQL (XAMPP) puis adapter le bloc DB_* du .env si besoin
+php artisan migrate --seed      # crée les tables + le jeu de démo (seeders + factories)
 npm run build                   # ou: composer dev (serveur + Vite + logs + queue)
-php artisan test                # 180 tests (dont tests/Feature/TemplatePagesTest.php)
+php artisan test                # 181 tests (dont tests/Feature/TemplatePagesTest.php)
 ```
+
+Base de données : **MySQL**. `.env.example` reprend la configuration par défaut de XAMPP (`127.0.0.1:3306`, base `laravel`, utilisateur `root`, mot de passe vide). Si la base n'existe pas, `php artisan migrate` propose de la créer. Pour repartir d'un jeu de démo propre : `php artisan migrate:fresh --seed`. Les tests utilisent une base SQLite en mémoire (`phpunit.xml`) et ne touchent jamais la base MySQL.
 
 | Compte | E-mail | Mot de passe |
 |---|---|---|
@@ -127,15 +130,30 @@ JavaScript (`resources/js/nutritrace/*`) : composants Alpine (modale avec piège
 
 Les composants de formulaire gèrent libellé, astérisque obligatoire, aide, `@error`, `old()` et `aria-describedby`/`aria-invalid`. Les couleurs dépendant d'une valeur (éco-score, statut, catégorie) passent toujours par des tables de correspondance de classes complètes, jamais par concaténation.
 
-## 5. Brancher les vraies données
+## 5. Données : modèles, seeders et factories
 
-Les contrôleurs lisent `App\Support\DemoData`, qui renvoie des collections d'objets aux attributs snake_case et relations imbriquées (`$product->certifications`, `$product->impact`, `$batch->steps`, `$report->target`…), comme Eloquent. Chaque appel est marqué `// TODO(Gestion N)`.
+Toutes les pages lisent la base via Eloquent (`app/Models`). Le jeu de démo est créé par `php artisan migrate --seed` :
 
-1. Créez vos modèles / migrations dans votre module (les entités ne sont **pas** créées par le template).
-2. Remplacez l'appel `DemoData::…` du contrôleur par la requête Eloquent équivalente, en gardant le même nom de variable passé à la vue.
-3. Pour la pagination, utilisez `->paginate(n)` : la vue `vendor.pagination.nutritrace` est déjà la vue par défaut.
+- **Seeders** (`database/seeders`, appelés dans l'ordre par `DatabaseSeeder`) : un seeder par entité, qui recrée le jeu de démo « éditorial » (produits, lots, avis, signalements… aux slugs, codes et références stables : `huile-olive-sfax`, `NT-2026-OLV-0412`, `SIG-2026-0001`). Les seeders retrouvent les enregistrements créés avant eux par slug, e-mail ou code, jamais par id.
+- **Factories** (`database/factories`) : une par modèle principal, avec des états utiles (`User::factory()->admin()`, `Actor::factory()->producer()`, `Review::factory()->flagged()`, `Report::factory()->about($product)->open()`…). Les seeders les utilisent pour les enregistrements fixes et pour générer en plus 15 consommateurs, 80 avis et 24 signalements répartis sur 12 mois (courbes du tableau de bord).
+- **Valeurs dérivées** : `Impact` calcule `eco_points` / `eco_score` à l'enregistrement (`App\Support\EcoScore`) ; `Report` génère sa référence `SIG-AAAA-NNNN` à la création.
+
+| Module | Modèles | Seeders | Contrôleurs |
+|---|---|---|---|
+| 1 — Produits & Certifications | `Category`, `Certification`, `Product`, `CertificationVerification` | `CategorySeeder`, `CertificationSeeder`, `ProductSeeder`, `CertificationVerificationSeeder` | `Front\ProductController`, `Front\CertificationController`, `Admin\ProductController`, `Admin\CategoryController`, `Admin\CertificationController`, `Admin\CertificationVerificationController` |
+| 2 — Traçabilité | `Actor`, `Batch`, `BatchStep` | `ActorSeeder`, `BatchSeeder` | `Front\TraceabilityController`, `Front\ActorController`, `Admin\ActorController`, `Admin\BatchController`, `Admin\BatchStepController` |
+| 3 — Empreinte | `Impact`, `EmissionFactor` | `ImpactSeeder`, `EmissionFactorSeeder` | `Front\ImpactController`, `Admin\ImpactController` (formule partagée : `App\Support\EcoScore`) |
+| 4 — Signalements & Avis | `Review` (+ `ReviewEvent`), `Report` (+ `ReportEvidence`, `ReportMessage`, `ReportNote`, `ReportEvent`) | `ReviewSeeder`, `ReportSeeder` | `Front\ReviewController`, `Front\ReportController`, `Front\ObservatoryController`, `Account\*`, `Admin\ReviewController`, `Admin\ReportController` |
+| Pages publiques | `Faq`, `Testimonial` | `SiteContentSeeder` | `Front\HomeController`, `Front\PageController` |
+
+Ce qui reste à faire dans chaque module est marqué `// TODO(Gestion N)` : les actions d'écriture (création, modification, suppression, modération) valident déjà les données et redirigent, mais n'enregistrent encore rien.
+
+1. Gardez les noms de variables passés aux vues et les attributs lus par les vues (`$product->eco_score`, `$product->rating_avg`, `$batch->total_km`, `$report->target`, `$review->reply`… sont des accesseurs des modèles).
+2. Chargez les relations affichées avec `with()` / les scopes fournis (`Product::forCards()`, `Product::withRating()`, `Actor::withStats()`, `Report::withTarget()`) pour éviter les requêtes N+1.
+3. Pour la pagination, utilisez `->paginate(n)->withQueryString()` : la vue `vendor.pagination.nutritrace` est déjà la vue par défaut.
 4. Les statuts doivent garder les valeurs de `StatusBadge::MAP` (`pending`, `in_review`, `confirmed`…) ; libellés et couleurs restent centralisés.
-5. Les compteurs de la sidebar admin viennent de `App\View\Composers\AdminSidebarComposer`.
+5. Les compteurs de la sidebar admin viennent de `App\View\Composers\AdminSidebarComposer`, les notifications de la barre du haut de `AdminNotificationsComposer`.
+6. La cible d'un signalement est polymorphe (`reportable_type` = `product` \| `actor` \| `certification`, voir `Relation::morphMap` dans `AppServiceProvider`).
 
 | Module | Contrôleurs |
 |---|---|
@@ -144,7 +162,7 @@ Les contrôleurs lisent `App\Support\DemoData`, qui renvoie des collections d'ob
 | 3 — Empreinte | `Front\ImpactController`, `Admin\ImpactController` (formule partagée : `App\Support\EcoScore`) |
 | 4 — Signalements & Avis | `Front\ReviewController`, `Front\ReportController`, `Front\ObservatoryController`, `Account\*`, `Admin\ReviewController`, `Admin\ReportController` |
 
-**Modèle partagé `User`** : seule modification, une colonne `role` (`admin` \| `actor` \| `consumer`, défaut `consumer`, migration `2026_10_03_000000_add_role_to_users_table`) et la méthode `isAdmin()`. Le middleware `admin` (`EnsureUserIsAdmin`) est déclaré dans `bootstrap/app.php`.
+**Modèle partagé `User`** : une colonne `role` (`admin` \| `actor` \| `consumer`, défaut `consumer`, migration `2026_10_03_000000_add_role_to_users_table`) et la méthode `isAdmin()`, une colonne `last_login_at` (mise à jour à la connexion) et les relations `reviews()`, `reports()` (signalements envoyés) et `assignedReports()`. Le middleware `admin` (`EnsureUserIsAdmin`) est déclaré dans `bootstrap/app.php`.
 
 ## 6. Critères d'évaluation → fichiers
 

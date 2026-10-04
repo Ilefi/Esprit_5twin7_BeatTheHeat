@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Product;
+use App\Models\Review;
 use App\View\Components\StatusBadge;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -13,45 +15,49 @@ class ReviewController extends Controller
 {
     public function index(Request $request): View
     {
-        // TODO(Gestion 4): replace DemoData with Review::with('product', 'user')->filter($request)->paginate()
-        $all = DemoData::reviews();
         $statuses = StatusBadge::options('review');
-        $status = array_key_exists($request->query('statut'), $statuses) ? $request->query('statut') : null;
+        $status = array_key_exists((string) $request->query('statut'), $statuses) ? $request->query('statut') : null;
+        $search = trim((string) $request->query('q'));
 
-        $reviews = $status ? $all->where('status', $status) : $all;
-        if ($rating = (int) $request->query('note')) {
-            $reviews = $reviews->where('rating', $rating);
-        }
-        if ($product = (int) $request->query('produit')) {
-            $reviews = $reviews->filter(fn ($r) => $r->product->id === $product);
-        }
-        if ($search = trim((string) $request->query('q'))) {
-            $reviews = $reviews->filter(fn ($r) => str_contains(mb_strtolower($r->title.' '.$r->body.' '.$r->user->name), mb_strtolower($search)));
-        }
+        $reviews = Review::with(['product', 'user'])
+            ->when($status, fn (Builder $query) => $query->where('status', $status))
+            ->when((int) $request->query('note'), fn (Builder $query, int $rating) => $query->where('rating', $rating))
+            ->when((int) $request->query('produit'), fn (Builder $query, int $product) => $query->where('product_id', $product))
+            ->when($search, fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->where('title', 'like', "%{$search}%")
+                ->orWhere('body', 'like', "%{$search}%")
+                ->orWhereHas('user', fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))))
+            ->latest();
+
+        $counts = Review::pluck('status')->countBy();
 
         return view('admin.reviews.index', [
-            'reviews' => DemoData::paginate($reviews->sortByDesc('created_at')->values(), 10),
+            'reviews' => $reviews->paginate(10)->withQueryString(),
             'statuses' => $statuses,
             'status' => $status,
-            'counts' => $all->countBy('status'),
-            'total' => $all->count(),
-            'products' => DemoData::products()->pluck('name', 'id')->all(),
+            'counts' => $counts,
+            'total' => $counts->sum(),
+            'products' => Product::orderBy('id')->pluck('name', 'id')->all(),
         ]);
     }
 
     public function show(int $review): View
     {
-        $review = DemoData::review($review);
+        $review = Review::with([
+            'product' => fn ($query) => $query->withRating()->with('producer'),
+            'user' => fn ($query) => $query->withCount('reviews'),
+            'history',
+        ])->findOrFail($review);
 
         return view('admin.reviews.show', [
             'review' => $review,
-            'otherReviews' => DemoData::reviews()->filter(fn ($r) => $r->user->id === $review->user->id && $r->id !== $review->id)->values(),
+            'otherReviews' => $review->user->reviews()->whereKeyNot($review->id)->with('product')->latest()->get(),
         ]);
     }
 
     public function moderate(Request $request, int $review): RedirectResponse
     {
-        DemoData::review($review);
+        Review::findOrFail($review);
 
         $data = $request->validate([
             'status' => ['required', 'in:published,rejected,flagged'],
@@ -78,7 +84,7 @@ class ReviewController extends Controller
 
     public function destroy(int $review): RedirectResponse
     {
-        DemoData::review($review);
+        Review::findOrFail($review);
 
         return redirect()->route('admin.reviews.index')->with('success', 'Avis supprimé définitivement.');
     }

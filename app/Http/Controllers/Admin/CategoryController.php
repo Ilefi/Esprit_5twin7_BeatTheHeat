@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Category;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -23,9 +23,8 @@ class CategoryController extends Controller
 
     public function index(): View
     {
-        // TODO(Gestion 1): replace DemoData with Category::withCount('products')->get()
         return view('admin.categories.index', [
-            'categories' => DemoData::categories(),
+            'categories' => Category::withCount('products')->get(),
             'icons' => self::ICONS,
         ]);
     }
@@ -39,6 +38,7 @@ class CategoryController extends Controller
 
     public function update(Request $request, int $category): RedirectResponse
     {
+        Category::findOrFail($category);
         $data = $request->validateWithBag('editCategory'.$category, $this->rules());
 
         return redirect()->route('admin.categories.index')->with('success', "La catégorie « {$data['name']} » a été mise à jour.");
@@ -46,7 +46,7 @@ class CategoryController extends Controller
 
     public function destroy(int $category): RedirectResponse
     {
-        $category = DemoData::categories()->firstWhere('id', $category) ?? abort(404);
+        $category = Category::findOrFail($category);
 
         return redirect()->route('admin.categories.index')->with('success', "La catégorie « {$category->name} » a été supprimée.");
     }

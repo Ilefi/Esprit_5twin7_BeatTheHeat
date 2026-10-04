@@ -54,9 +54,9 @@
                 <ol class="space-y-4">
                     @foreach ($report->messages as $message)
                         <li @class(['flex gap-3', 'flex-row-reverse text-right' => $message->role === 'moderator'])>
-                            <x-nt.avatar :name="$message->author" size="sm" />
+                            <x-nt.avatar :name="$message->user->name" size="sm" />
                             <div @class(['max-w-[85%] rounded-xl p-3 text-left text-sm', 'bg-primary/10' => $message->role === 'moderator', 'bg-muted' => $message->role !== 'moderator'])>
-                                <p class="text-xs font-semibold">{{ $message->author }} <span class="font-normal text-muted-foreground">· {{ $message->at->diffForHumans() }}</span></p>
+                                <p class="text-xs font-semibold">{{ $message->user->name }} <span class="font-normal text-muted-foreground">· {{ $message->created_at->diffForHumans() }}</span></p>
                                 <p class="mt-1">{{ $message->body }}</p>
                                 @foreach ($message->attachments as $attachment)
                                     <span class="nt-badge mt-2 bg-surface"><i class="fa-solid fa-paperclip text-[0.7em]" aria-hidden="true"></i>{{ $attachment }}</span>
@@ -114,7 +114,7 @@
                     @forelse ($report->notes as $note)
                         <li class="rounded-lg bg-gold/12 p-3 text-sm">
                             <p>{{ $note->body }}</p>
-                            <p class="mt-1 text-xs text-muted-foreground">{{ $note->author }} · {{ $note->at->diffForHumans() }}</p>
+                            <p class="mt-1 text-xs text-muted-foreground">{{ $note->user->name }} · {{ $note->created_at->diffForHumans() }}</p>
                         </li>
                     @empty
                         <li class="text-sm text-muted-foreground">Aucune note pour l'instant.</li>
@@ -132,7 +132,7 @@
                 <x-slot:header><h2 class="text-base font-semibold">Historique</h2></x-slot:header>
                 <x-nt.timeline>
                     @foreach ($report->history->reverse() as $entry)
-                        <x-nt.timeline-item icon="fa-clock-rotate-left" :tone="$loop->first ? 'primary' : 'muted'" :title="$entry->label" :time="$entry->at->translatedFormat('d M Y, H:i').' · '.$entry->by" />
+                        <x-nt.timeline-item icon="fa-clock-rotate-left" :tone="$loop->first ? 'primary' : 'muted'" :title="$entry->label" :time="$entry->created_at->translatedFormat('d M Y, H:i').' · '.$entry->author" />
                     @endforeach
                 </x-nt.timeline>
             </x-nt.card>

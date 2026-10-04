@@ -54,11 +54,11 @@
                 <ol class="space-y-4">
                     @foreach ($report->messages as $message)
                         <li @class(['flex gap-3', 'flex-row-reverse text-right' => $message->role === 'reporter'])>
-                            <x-nt.avatar :name="$message->author" size="sm" />
+                            <x-nt.avatar :name="$message->user->name" size="sm" />
                             <div @class(['max-w-[85%] rounded-xl p-3 text-sm', 'bg-primary/10' => $message->role === 'reporter', 'bg-muted' => $message->role !== 'reporter'])>
                                 <p class="text-xs font-semibold">
-                                    {{ $message->role === 'reporter' ? 'Vous' : $message->author.' · Modération' }}
-                                    <span class="font-normal text-muted-foreground">· {{ $message->at->diffForHumans() }}</span>
+                                    {{ $message->role === 'reporter' ? 'Vous' : $message->user->name.' · Modération' }}
+                                    <span class="font-normal text-muted-foreground">· {{ $message->created_at->diffForHumans() }}</span>
                                 </p>
                                 <p class="mt-1 text-left">{{ $message->body }}</p>
                                 @foreach ($message->attachments as $attachment)
@@ -118,7 +118,7 @@
                 <x-slot:header><h2 class="text-base font-semibold">Historique</h2></x-slot:header>
                 <x-nt.timeline>
                     @foreach ($report->history->reverse() as $entry)
-                        <x-nt.timeline-item icon="fa-clock-rotate-left" :tone="$loop->first ? 'primary' : 'muted'" :title="$entry->label" :time="$entry->at->translatedFormat('d M Y, H:i')" />
+                        <x-nt.timeline-item icon="fa-clock-rotate-left" :tone="$loop->first ? 'primary' : 'muted'" :title="$entry->label" :time="$entry->created_at->translatedFormat('d M Y, H:i')" />
                     @endforeach
                 </x-nt.timeline>
             </x-nt.card>

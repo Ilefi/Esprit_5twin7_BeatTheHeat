@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Batch;
+use App\Models\Faq;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -25,14 +26,14 @@ class PageController extends Controller
     public function how(): View
     {
         return view('front.pages.how', [
-            'exampleBatch' => DemoData::batches()->first(),
+            'exampleBatch' => Batch::orderBy('id')->first(),
         ]);
     }
 
     public function faq(): View
     {
         return view('front.pages.faq', [
-            'faqs' => DemoData::faqs(),
+            'faqs' => Faq::orderBy('position')->get(),
         ]);
     }
 

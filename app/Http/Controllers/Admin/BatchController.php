@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Actor;
+use App\Models\Batch;
+use App\Models\Product;
 use App\View\Components\StatusBadge;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,18 +23,18 @@ class BatchController extends Controller
 
     public function index(Request $request): View
     {
-        // TODO(Gestion 2): replace DemoData with Batch::with('product')->withCount('steps')->filter($request)->paginate()
-        $batches = DemoData::batches();
+        $status = (string) $request->query('statut');
+        $search = trim((string) $request->query('q'));
 
-        if (array_key_exists($status = (string) $request->query('statut'), StatusBadge::options('batch'))) {
-            $batches = $batches->where('status', $status);
-        }
-        if ($search = trim((string) $request->query('q'))) {
-            $batches = $batches->filter(fn ($b) => str_contains(mb_strtolower($b->code.' '.$b->product->name), mb_strtolower($search)));
-        }
+        $batches = Batch::with(['product', 'steps'])
+            ->when(array_key_exists($status, StatusBadge::options('batch')), fn (Builder $query) => $query->where('status', $status))
+            ->when($search, fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->where('code', 'like', "%{$search}%")
+                ->orWhereHas('product', fn (Builder $query) => $query->where('name', 'like', "%{$search}%"))))
+            ->orderBy('id');
 
         return view('admin.batches.index', [
-            'batches' => DemoData::paginate($batches->values(), 8),
+            'batches' => $batches->paginate(8)->withQueryString(),
             'statuses' => StatusBadge::options('batch'),
         ]);
     }
@@ -51,20 +54,20 @@ class BatchController extends Controller
     public function show(int $batch): View
     {
         return view('admin.batches.show', [
-            'batch' => DemoData::batchById($batch),
+            'batch' => Batch::with(['product', 'steps.actor'])->findOrFail($batch),
             'stages' => self::STAGES,
-            'actors' => DemoData::actors()->pluck('name', 'id')->all(),
+            'actors' => Actor::orderBy('id')->pluck('name', 'id')->all(),
         ]);
     }
 
     public function edit(int $batch): View
     {
-        return view('admin.batches.edit', $this->formData() + ['batch' => DemoData::batchById($batch)]);
+        return view('admin.batches.edit', $this->formData() + ['batch' => Batch::with('product')->findOrFail($batch)]);
     }
 
     public function update(Request $request, int $batch): RedirectResponse
     {
-        DemoData::batchById($batch);
+        Batch::findOrFail($batch);
         $data = $this->validated($request);
 
         return redirect()->route('admin.batches.show', $batch)->with('success', "Le lot {$data['code']} a été mis à jour.");
@@ -72,7 +75,7 @@ class BatchController extends Controller
 
     public function destroy(int $batch): RedirectResponse
     {
-        $batch = DemoData::batchById($batch);
+        $batch = Batch::findOrFail($batch);
 
         return redirect()->route('admin.batches.index')->with('success', "Le lot {$batch->code} a été supprimé.");
     }
@@ -80,7 +83,7 @@ class BatchController extends Controller
     private function formData(): array
     {
         return [
-            'products' => DemoData::products()->pluck('name', 'id')->all(),
+            'products' => Product::orderBy('id')->pluck('name', 'id')->all(),
             'statuses' => StatusBadge::options('batch'),
         ];
     }

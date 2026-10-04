@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Batch;
+use App\Models\Certification;
+use App\Models\Faq;
+use App\Models\Product;
+use App\Models\Testimonial;
 use App\Support\EcoScore;
 use Illuminate\View\View;
 
@@ -11,16 +15,13 @@ class HomeController extends Controller
 {
     public function __invoke(): View
     {
-        // TODO(Gestion 1-4): replace DemoData with Eloquent queries
-        $products = DemoData::products()->where('status', 'published');
-
         return view('front.home', [
-            'featuredProducts' => $products->sortByDesc('rating_avg')->take(8)->values(),
-            'certifications' => DemoData::certifications(),
+            'featuredProducts' => Product::published()->forCards()->orderByDesc('rating_avg')->orderBy('id')->take(8)->get(),
+            'certifications' => Certification::withCount(['products', 'actors'])->get(),
             'grades' => EcoScore::grades(),
-            'testimonials' => DemoData::testimonials(),
-            'faqs' => DemoData::faqs(),
-            'exampleBatch' => DemoData::batches()->first(),
+            'testimonials' => Testimonial::all(),
+            'faqs' => Faq::orderBy('position')->get(),
+            'exampleBatch' => Batch::orderBy('id')->first(),
             'counters' => [
                 ['value' => 1280, 'label' => 'produits tracés', 'icon' => 'fa-qrcode'],
                 ['value' => 342, 'label' => 'producteurs engagés', 'icon' => 'fa-tractor'],

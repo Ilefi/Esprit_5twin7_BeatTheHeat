@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Product;
+use App\Models\Review;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -11,7 +12,7 @@ class ReviewController extends Controller
 {
     public function store(Request $request, string $slug): RedirectResponse
     {
-        $product = DemoData::product($slug);
+        $product = Product::where('slug', $slug)->firstOrFail();
 
         $request->validateWithBag('review', [
             'rating' => ['required', 'integer', 'between:1,5'],
@@ -29,7 +30,7 @@ class ReviewController extends Controller
 
     public function helpful(int $review): RedirectResponse
     {
-        DemoData::review($review);
+        Review::findOrFail($review);
 
         // TODO(Gestion 4): ReviewVote::firstOrCreate([...]) then increment helpful_count
         return back()->with('success', 'Merci, votre vote « utile » a été pris en compte.');

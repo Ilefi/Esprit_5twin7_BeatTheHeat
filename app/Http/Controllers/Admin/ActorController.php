@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Actor;
+use App\Models\Certification;
 use App\View\Components\StatusBadge;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -13,18 +15,18 @@ class ActorController extends Controller
 {
     public function index(Request $request): View
     {
-        // TODO(Gestion 2): replace DemoData with Actor::withCount(...)->filter($request)->paginate()
-        $actors = DemoData::actors();
+        $type = (string) $request->query('type');
+        $search = trim((string) $request->query('q'));
 
-        if (array_key_exists($type = (string) $request->query('type'), StatusBadge::options('actor_type'))) {
-            $actors = $actors->where('type', $type);
-        }
-        if ($search = trim((string) $request->query('q'))) {
-            $actors = $actors->filter(fn ($a) => str_contains(mb_strtolower($a->name.' '.$a->city), mb_strtolower($search)));
-        }
+        $actors = Actor::withStats()->with('certifications')
+            ->when(array_key_exists($type, StatusBadge::options('actor_type')), fn (Builder $query) => $query->where('type', $type))
+            ->when($search, fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('city', 'like', "%{$search}%")))
+            ->orderBy('id');
 
         return view('admin.actors.index', [
-            'actors' => DemoData::paginate($actors->values(), 8),
+            'actors' => $actors->paginate(8)->withQueryString(),
             'types' => StatusBadge::options('actor_type'),
         ]);
     }
@@ -43,12 +45,12 @@ class ActorController extends Controller
 
     public function edit(int $actor): View
     {
-        return view('admin.actors.edit', $this->formData() + ['actor' => DemoData::actorById($actor)]);
+        return view('admin.actors.edit', $this->formData() + ['actor' => Actor::with('certifications')->findOrFail($actor)]);
     }
 
     public function update(Request $request, int $actor): RedirectResponse
     {
-        DemoData::actorById($actor);
+        Actor::findOrFail($actor);
         $data = $this->validated($request);
 
         return redirect()->route('admin.actors.index')->with('success', "L'acteur « {$data['name']} » a été mis à jour.");
@@ -56,7 +58,7 @@ class ActorController extends Controller
 
     public function destroy(int $actor): RedirectResponse
     {
-        $actor = DemoData::actorById($actor);
+        $actor = Actor::findOrFail($actor);
 
         return redirect()->route('admin.actors.index')->with('success', "L'acteur « {$actor->name} » a été supprimé.");
     }
@@ -65,7 +67,7 @@ class ActorController extends Controller
     {
         return [
             'types' => StatusBadge::options('actor_type'),
-            'certifications' => DemoData::certifications(),
+            'certifications' => Certification::orderBy('id')->get(),
         ];
     }
 

@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\CertificationVerification;
 use App\View\Components\StatusBadge;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,12 +13,11 @@ class CertificationVerificationController extends Controller
 {
     public function index(Request $request): View
     {
-        // TODO(Gestion 1): replace DemoData with CertificationRequest::with('actor', 'certification')->latest()->get()
-        $all = DemoData::verifications();
+        $all = CertificationVerification::with(['actor', 'certification'])->latest('submitted_at')->get();
         $status = array_key_exists($request->query('statut'), StatusBadge::options('verification')) ? $request->query('statut') : 'pending';
 
         return view('admin.certifications.verifications', [
-            'verifications' => $all->where('status', $status)->sortByDesc('submitted_at')->values(),
+            'verifications' => $all->where('status', $status)->values(),
             'status' => $status,
             'statuses' => StatusBadge::options('verification'),
             'counts' => $all->countBy('status'),
@@ -45,8 +44,8 @@ class CertificationVerificationController extends Controller
             ->with('success', "Certificat de {$verification->actor->name} refusé. Le motif lui a été transmis.");
     }
 
-    private function find(int $id): object
+    private function find(int $id): CertificationVerification
     {
-        return DemoData::verifications()->firstWhere('id', $id) ?? abort(404);
+        return CertificationVerification::with(['actor', 'certification'])->findOrFail($id);
     }
 }

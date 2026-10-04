@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
-use App\Support\DemoData;
+use App\Models\Product;
 use App\Support\EcoScore;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,18 +15,19 @@ class ImpactController extends Controller
         return view('front.impact.index', [
             'grades' => EcoScore::grades(),
             'packaging' => EcoScore::PACKAGING_LABELS,
-            'example' => DemoData::product('huile-olive-sfax'),
+            'example' => Product::published()->has('impact')->with('impact')->orderBy('id')->firstOrFail(),
         ]);
     }
 
     public function compare(Request $request): View
     {
-        // TODO(Gestion 3): replace DemoData with Product::with('impact')->whereIn('id', $ids)->get()
-        $all = DemoData::products()->where('status', 'published')->values();
+        $all = Product::published()->has('impact')->with(['impact', 'category', 'producer'])->orderBy('id')->get();
 
         $ids = collect((array) $request->query('produits', []))->map(fn ($id) => (int) $id)->filter()->unique()->take(3);
         if ($ids->count() < 2) {
-            $ids = collect([1, 11]);
+            // Default comparison: best vs worst eco-score.
+            $byPoints = $all->sortByDesc(fn ($p) => $p->impact->eco_points);
+            $ids = collect([$byPoints->first()?->id, $byPoints->last()?->id])->filter()->unique();
         }
 
         $selected = $ids->map(fn ($id) => $all->firstWhere('id', $id))->filter()->values();
