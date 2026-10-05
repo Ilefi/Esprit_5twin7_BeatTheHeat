@@ -60,7 +60,19 @@ class ProductController extends Controller
             ->withRating()
             ->firstOrFail();
 
-        $allReviews = $product->reviews()->published()->with('user')->get()->each->setRelation('product', $product);
+        $user = $request->user();
+        $allReviews = $product->reviews()
+            ->with('user')
+            ->where(function (Builder $query) use ($user) {
+                $query->where('status', 'published');
+                if ($user) {
+                    $query->orWhere(function (Builder $q) use ($user) {
+                        $q->where('user_id', $user->id)->where('status', 'pending');
+                    });
+                }
+            })
+            ->get()
+            ->each->setRelation('product', $product);
 
         // TODO(Gestion 4): move review filters into a query scope
         $reviews = $allReviews;

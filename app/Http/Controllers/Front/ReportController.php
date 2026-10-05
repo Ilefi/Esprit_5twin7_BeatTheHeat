@@ -61,7 +61,7 @@ class ReportController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'type' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('report_type')))],
             'target_type' => ['required', 'in:product,actor,certification'],
             'target_id' => ['required', 'integer', 'min:1'],
@@ -72,11 +72,44 @@ class ReportController extends Controller
             'consent' => ['accepted'],
         ]);
 
-        // TODO(Gestion 4): Report::create([...]) + store evidence files
-        $ref = Report::nextRef();
+        $report = Report::create([
+            'type' => $validated['type'],
+            'reportable_type' => $validated['target_type'],
+            'reportable_id' => $validated['target_id'],
+            'title' => 'Signalement '.StatusBadge::labelFor('report_type', $validated['type']),
+            'description' => $validated['description'],
+            'status' => 'pending',
+            'priority' => 'medium',
+            'reporter_id' => $request->user()->id,
+        ]);
+
+        if ($request->hasFile('evidence')) {
+            foreach ($request->file('evidence') as $file) {
+                $path = $file->store('evidence', 'public');
+                $report->evidence()->create([
+                    'kind' => 'file',
+                    'name' => $file->getClientOriginalName(),
+                    'size' => round($file->getSize() / 1024).' Ko',
+                    'url' => asset('storage/'.$path),
+                ]);
+            }
+        }
+
+        if (! empty($validated['links'])) {
+            $report->evidence()->create([
+                'kind' => 'link',
+                'name' => 'Lien de référence',
+                'url' => $validated['links'],
+            ]);
+        }
+
+        $report->history()->create([
+            'label' => 'Signalement déposé par le consommateur',
+            'author' => $request->user()->name,
+        ]);
 
         return redirect()->route('account.reports.index')
-            ->with('success', "Votre signalement {$ref} a bien été enregistré. Vous serez notifié à chaque étape de son traitement.");
+            ->with('success', "Votre signalement {$report->ref} a bien été enregistré. Vous serez notifié à chaque étape de son traitement.");
     }
 
     private function stepWithErrors(?ViewErrorBag $errors): int

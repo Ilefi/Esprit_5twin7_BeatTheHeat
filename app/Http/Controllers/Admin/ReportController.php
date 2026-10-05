@@ -65,14 +65,23 @@ class ReportController extends Controller
     {
         $report = Report::where('ref', $ref)->firstOrFail();
 
-        $request->validate([
+        $validated = $request->validate([
             'status' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('report')))],
             'priority' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('priority')))],
             'assignee_id' => ['nullable', 'integer'],
             'resolution' => ['nullable', 'required_if:status,confirmed,rejected,resolved', 'string', 'max:1000'],
         ], ['resolution.required_if' => 'Une décision motivée est requise pour clôturer le signalement.'], ['resolution' => 'décision']);
 
-        // TODO(Gestion 4): $report->update([...]) + history entry + notify reporter
+        $oldStatus = $report->status;
+        $report->update($validated);
+
+        if ($oldStatus !== $validated['status']) {
+            $report->history()->create([
+                'label' => 'Statut changé : '.StatusBadge::labelFor('report', $validated['status']),
+                'author' => $request->user()->name,
+            ]);
+        }
+
         return redirect()->route('admin.reports.show', $report->ref)->with('success', "Signalement {$report->ref} mis à jour.");
     }
 
@@ -81,13 +90,28 @@ class ReportController extends Controller
         $report = Report::where('ref', $ref)->firstOrFail();
         $data = $request->validate(['status' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('report')))]]);
 
+        $oldStatus = $report->status;
+        $report->update(['status' => $data['status']]);
+
+        if ($oldStatus !== $data['status']) {
+            $report->history()->create([
+                'label' => 'Statut changé : '.StatusBadge::labelFor('report', $data['status']),
+                'author' => $request->user()->name,
+            ]);
+        }
+
         return back()->with('success', "{$report->ref} → ".StatusBadge::labelFor('report', $data['status']).'.');
     }
 
     public function note(Request $request, string $ref): RedirectResponse
     {
         $report = Report::where('ref', $ref)->firstOrFail();
-        $request->validateWithBag('note', ['note' => ['required', 'string', 'min:3', 'max:1000']]);
+        $validated = $request->validateWithBag('note', ['note' => ['required', 'string', 'min:3', 'max:1000']]);
+
+        $report->notes()->create([
+            'user_id' => $request->user()->id,
+            'body' => $validated['note'],
+        ]);
 
         return redirect()->route('admin.reports.show', $report->ref)->with('success', 'Note interne ajoutée.');
     }
@@ -95,7 +119,19 @@ class ReportController extends Controller
     public function reply(Request $request, string $ref): RedirectResponse
     {
         $report = Report::where('ref', $ref)->firstOrFail();
-        $request->validateWithBag('reply', ['reply' => ['required', 'string', 'min:10', 'max:2000']]);
+        $validated = $request->validateWithBag('reply', ['reply' => ['required', 'string', 'min:10', 'max:2000']]);
+
+        $report->messages()->create([
+            'user_id' => $request->user()->id,
+            'role' => 'moderator',
+            'body' => $validated['reply'],
+            'attachments' => [],
+        ]);
+
+        $report->history()->create([
+            'label' => 'Réponse officielle du modérateur',
+            'author' => $request->user()->name,
+        ]);
 
         return redirect()->route('admin.reports.show', $report->ref)->with('success', "Réponse envoyée à {$report->reporter->name}.");
     }

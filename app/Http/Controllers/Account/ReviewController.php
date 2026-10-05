@@ -29,23 +29,34 @@ class ReviewController extends Controller
 
     public function update(Request $request, int $review): RedirectResponse
     {
-        $request->user()->reviews()->findOrFail($review);
+        $userReview = $request->user()->reviews()->findOrFail($review);
 
-        $request->validateWithBag('editReview'.$review, [
+        $validated = $request->validateWithBag('editReview'.$review, [
             'rating' => ['required', 'integer', 'between:1,5'],
             'title' => ['required', 'string', 'max:120'],
             'body' => ['required', 'string', 'min:20', 'max:1500'],
         ]);
 
-        // TODO(Gestion 4): $review->update([...] + ['status' => 'pending'])
+        $userReview->update([
+            'rating' => $validated['rating'],
+            'title' => $validated['title'],
+            'body' => $validated['body'],
+            'status' => 'pending',
+        ]);
+
+        $userReview->history()->create([
+            'label' => 'Avis modifié par l\'auteur (remis en modération)',
+            'author' => $request->user()->name,
+        ]);
+
         return redirect()->route('account.reviews.index')->with('success', 'Votre avis a été modifié. Il repasse en modération avant republication.');
     }
 
     public function destroy(Request $request, int $review): RedirectResponse
     {
-        $request->user()->reviews()->findOrFail($review);
+        $userReview = $request->user()->reviews()->findOrFail($review);
+        $userReview->delete();
 
-        // TODO(Gestion 4): $review->delete()
         return redirect()->route('account.reviews.index')->with('success', 'Votre avis a été supprimé.');
     }
 }

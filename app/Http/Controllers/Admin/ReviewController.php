@@ -57,14 +57,21 @@ class ReviewController extends Controller
 
     public function moderate(Request $request, int $review): RedirectResponse
     {
-        Review::findOrFail($review);
+        $reviewModel = Review::findOrFail($review);
 
         $data = $request->validate([
             'status' => ['required', 'in:published,rejected,flagged'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
-        // TODO(Gestion 4): $review->update(['status' => $data['status']]) + log moderation history
+        $reviewModel->update(['status' => $data['status']]);
+
+        $reviewModel->history()->create([
+            'label' => 'Statut modéré : '.StatusBadge::labelFor('review', $data['status']),
+            'author' => $request->user()->name,
+            'note' => $data['note'] ?? null,
+        ]);
+
         return back()->with('success', 'Avis '.mb_strtolower(StatusBadge::labelFor('review', $data['status'])).' avec succès.');
     }
 
@@ -76,7 +83,16 @@ class ReviewController extends Controller
             'action' => ['required', 'in:published,rejected'],
         ], ['ids.required' => 'Sélectionnez au moins un avis.']);
 
-        $count = count($data['ids']);
+        $reviews = Review::whereIn('id', $data['ids'])->get();
+        foreach ($reviews as $reviewModel) {
+            $reviewModel->update(['status' => $data['action']]);
+            $reviewModel->history()->create([
+                'label' => 'Modération groupée : '.StatusBadge::labelFor('review', $data['action']),
+                'author' => $request->user()->name,
+            ]);
+        }
+
+        $count = $reviews->count();
         $verb = $data['action'] === 'published' ? 'approuvé' : 'rejeté';
 
         return back()->with('success', "{$count} avis {$verb}".($count > 1 ? 's' : '').'.');
@@ -84,7 +100,8 @@ class ReviewController extends Controller
 
     public function destroy(int $review): RedirectResponse
     {
-        Review::findOrFail($review);
+        $reviewModel = Review::findOrFail($review);
+        $reviewModel->delete();
 
         return redirect()->route('admin.reviews.index')->with('success', 'Avis supprimé définitivement.');
     }

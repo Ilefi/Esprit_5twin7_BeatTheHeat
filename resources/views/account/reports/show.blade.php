@@ -6,7 +6,13 @@
 @section('account_subtitle', 'Référence '.$report->ref.' · envoyé le '.$report->created_at->translatedFormat('d F Y'))
 
 @section('account_actions')
-    <x-nt.button :href="route('account.reports.index')" variant="ghost" size="sm" icon="fa-arrow-left">Mes signalements</x-nt.button>
+    <div class="flex items-center gap-2">
+        <x-nt.button :href="route('account.reports.index')" variant="ghost" size="sm" icon="fa-arrow-left">Mes signalements</x-nt.button>
+        @if ($report->status === 'pending')
+            <x-nt.button :href="route('account.reports.edit', $report->ref)" variant="outline" size="sm" icon="fa-pen">Modifier</x-nt.button>
+        @endif
+        <x-nt.button variant="ghost" size="sm" icon="fa-trash" class="text-danger-strong hover:bg-danger/10" x-data x-on:click="$dispatch('open-modal', 'delete-report-{{ $report->ref }}')">Supprimer</x-nt.button>
+    </div>
 @endsection
 
 @php
@@ -124,4 +130,16 @@
             </x-nt.card>
         </div>
     </div>
+
+    <x-nt.modal :name="'delete-report-'.$report->ref" title="Supprimer ce signalement ?" max-width="md">
+        <p class="text-sm text-muted-foreground">Le signalement « <strong class="text-foreground">{{ $report->ref }}</strong> » ainsi que toutes ses pièces jointes et messages seront définitivement supprimés.</p>
+        <x-slot:footer>
+            <x-nt.button variant="ghost" x-on:click="$dispatch('close-modal')">Annuler</x-nt.button>
+            <form method="POST" action="{{ route('account.reports.destroy', $report->ref) }}">
+                @csrf
+                @method('DELETE')
+                <x-nt.button type="submit" variant="danger" icon="fa-trash">Supprimer définitivement</x-nt.button>
+            </form>
+        </x-slot:footer>
+    </x-nt.modal>
 @endsection

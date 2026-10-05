@@ -61,6 +61,9 @@ Route::middleware('auth')->prefix('mon-espace')->name('account.')->group(functio
     Route::delete('/avis/{review}', [Account\ReviewController::class, 'destroy'])->name('reviews.destroy')->whereNumber('review');
 
     Route::get('/signalements', [Account\ReportController::class, 'index'])->name('reports.index');
+    Route::get('/signalements/{ref}/modifier', [Account\ReportController::class, 'edit'])->name('reports.edit');
+    Route::put('/signalements/{ref}', [Account\ReportController::class, 'update'])->name('reports.update');
+    Route::delete('/signalements/{ref}', [Account\ReportController::class, 'destroy'])->name('reports.destroy');
     Route::get('/signalements/{ref}', [Account\ReportController::class, 'show'])->name('reports.show');
     Route::post('/signalements/{ref}/messages', [Account\ReportController::class, 'message'])->name('reports.message');
 

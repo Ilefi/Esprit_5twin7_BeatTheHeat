@@ -14,7 +14,7 @@ class ReviewController extends Controller
     {
         $product = Product::where('slug', $slug)->firstOrFail();
 
-        $request->validateWithBag('review', [
+        $validated = $request->validateWithBag('review', [
             'rating' => ['required', 'integer', 'between:1,5'],
             'quality_rating' => ['required', 'integer', 'between:1,5'],
             'transparency_rating' => ['required', 'integer', 'between:1,5'],
@@ -23,16 +23,31 @@ class ReviewController extends Controller
             'body' => ['required', 'string', 'min:20', 'max:1500'],
         ]);
 
-        // TODO(Gestion 4): $product->reviews()->create([...] + ['user_id' => $request->user()->id, 'status' => 'pending'])
+        $review = $product->reviews()->create([
+            'user_id' => $request->user()->id,
+            'rating' => $validated['rating'],
+            'quality_rating' => $validated['quality_rating'],
+            'transparency_rating' => $validated['transparency_rating'],
+            'value_rating' => $validated['value_rating'],
+            'title' => $validated['title'],
+            'body' => $validated['body'],
+            'status' => 'pending',
+        ]);
+
+        $review->history()->create([
+            'label' => 'Avis soumis par le consommateur',
+            'author' => $request->user()->name,
+        ]);
+
         return redirect(route('front.products.show', $product->slug).'#avis')
             ->with('success', 'Merci ! Votre avis a été envoyé et sera publié après une vérification rapide.');
     }
 
     public function helpful(int $review): RedirectResponse
     {
-        Review::findOrFail($review);
+        $reviewModel = Review::findOrFail($review);
+        $reviewModel->increment('helpful_count');
 
-        // TODO(Gestion 4): ReviewVote::firstOrCreate([...]) then increment helpful_count
         return back()->with('success', 'Merci, votre vote « utile » a été pris en compte.');
     }
 }
