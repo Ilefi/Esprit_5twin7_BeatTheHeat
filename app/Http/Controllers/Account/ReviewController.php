@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateReviewRequest;
 use App\View\Components\StatusBadge;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,15 +28,11 @@ class ReviewController extends Controller
         ]);
     }
 
-    public function update(Request $request, int $review): RedirectResponse
+    public function update(UpdateReviewRequest $request, int $review): RedirectResponse
     {
         $userReview = $request->user()->reviews()->findOrFail($review);
 
-        $validated = $request->validateWithBag('editReview'.$review, [
-            'rating' => ['required', 'integer', 'between:1,5'],
-            'title' => ['required', 'string', 'max:120'],
-            'body' => ['required', 'string', 'min:20', 'max:1500'],
-        ]);
+        $validated = $request->validated();
 
         $userReview->update([
             'rating' => $validated['rating'],

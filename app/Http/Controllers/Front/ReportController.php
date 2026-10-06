@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreReportRequest;
 use App\Models\Actor;
 use App\Models\Certification;
 use App\Models\Product;
@@ -35,17 +36,20 @@ class ReportController extends Controller
     public function create(Request $request): View
     {
         $targets = [
-            'product' => Product::published()->with('producer')->orderBy('id')->get()->map(fn ($p) => ['id' => $p->id, 'name' => $p->name, 'subtitle' => $p->producer->name]),
-            'actor' => Actor::orderBy('id')->get()->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'subtitle' => $a->city]),
-            'certification' => Certification::orderBy('id')->get()->map(fn ($c) => ['id' => $c->id, 'name' => $c->name, 'subtitle' => $c->issuer]),
+            'product' => Product::published()->with('producer')->orderBy('id')->get()->map(fn($p) => ['id' => $p->id, 'name' => $p->name, 'subtitle' => $p->producer->name]),
+            'actor' => Actor::orderBy('id')->get()->map(fn($a) => ['id' => $a->id, 'name' => $a->name, 'subtitle' => $a->city]),
+            'certification' => Certification::orderBy('id')->get()->map(fn($c) => ['id' => $c->id, 'name' => $c->name, 'subtitle' => $c->issuer]),
         ];
 
         $targetType = old('target_type', $request->query('cible', 'product'));
         $targetType = array_key_exists($targetType, $targets) ? $targetType : 'product';
 
         return view('front.reports.create', [
-            'types' => collect(StatusBadge::options('report_type'))->map(fn ($label, $value) => [
-                'value' => $value, 'label' => $label, 'icon' => StatusBadge::iconFor('report_type', $value), 'hint' => self::TYPE_HINTS[$value],
+            'types' => collect(StatusBadge::options('report_type'))->map(fn($label, $value) => [
+                'value' => $value,
+                'label' => $label,
+                'icon' => StatusBadge::iconFor('report_type', $value),
+                'hint' => self::TYPE_HINTS[$value],
             ])->values(),
             'targets' => $targets,
             'prefill' => [
@@ -59,24 +63,15 @@ class ReportController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreReportRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'type' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('report_type')))],
-            'target_type' => ['required', 'in:product,actor,certification'],
-            'target_id' => ['required', 'integer', 'min:1'],
-            'description' => ['required', 'string', 'min:30', 'max:3000'],
-            'evidence' => ['nullable', 'array', 'max:5'],
-            'evidence.*' => ['file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
-            'links' => ['nullable', 'string', 'max:1000'],
-            'consent' => ['accepted'],
-        ]);
+        $validated = $request->validated();
 
         $report = Report::create([
             'type' => $validated['type'],
             'reportable_type' => $validated['target_type'],
             'reportable_id' => $validated['target_id'],
-            'title' => 'Signalement '.StatusBadge::labelFor('report_type', $validated['type']),
+            'title' => 'Signalement ' . StatusBadge::labelFor('report_type', $validated['type']),
             'description' => $validated['description'],
             'status' => 'pending',
             'priority' => 'medium',
@@ -89,13 +84,13 @@ class ReportController extends Controller
                 $report->evidence()->create([
                     'kind' => 'file',
                     'name' => $file->getClientOriginalName(),
-                    'size' => round($file->getSize() / 1024).' Ko',
-                    'url' => asset('storage/'.$path),
+                    'size' => round($file->getSize() / 1024) . ' Ko',
+                    'url' => asset('storage/' . $path),
                 ]);
             }
         }
 
-        if (! empty($validated['links'])) {
+        if (!empty($validated['links'])) {
             $report->evidence()->create([
                 'kind' => 'link',
                 'name' => 'Lien de référence',
@@ -114,13 +109,13 @@ class ReportController extends Controller
 
     private function stepWithErrors(?ViewErrorBag $errors): int
     {
-        if (! $errors || $errors->isEmpty()) {
+        if (!$errors || $errors->isEmpty()) {
             return 1;
         }
 
         foreach (self::STEP_FIELDS as $step => $fields) {
             foreach ($fields as $field) {
-                if ($errors->has($field) || $errors->has($field.'.*')) {
+                if ($errors->has($field) || $errors->has($field . '.*')) {
                     return $step;
                 }
             }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Front;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreReviewRequest;
 use App\Models\Product;
 use App\Models\Review;
 use Illuminate\Http\RedirectResponse;
@@ -10,18 +11,11 @@ use Illuminate\Http\Request;
 
 class ReviewController extends Controller
 {
-    public function store(Request $request, string $slug): RedirectResponse
+    public function store(StoreReviewRequest $request, string $slug): RedirectResponse
     {
         $product = Product::where('slug', $slug)->firstOrFail();
 
-        $validated = $request->validateWithBag('review', [
-            'rating' => ['required', 'integer', 'between:1,5'],
-            'quality_rating' => ['required', 'integer', 'between:1,5'],
-            'transparency_rating' => ['required', 'integer', 'between:1,5'],
-            'value_rating' => ['required', 'integer', 'between:1,5'],
-            'title' => ['required', 'string', 'max:120'],
-            'body' => ['required', 'string', 'min:20', 'max:1500'],
-        ]);
+        $validated = $request->validated();
 
         $review = $product->reviews()->create([
             'user_id' => $request->user()->id,
@@ -39,7 +33,7 @@ class ReviewController extends Controller
             'author' => $request->user()->name,
         ]);
 
-        return redirect(route('front.products.show', $product->slug).'#avis')
+        return redirect(route('front.products.show', $product->slug) . '#avis')
             ->with('success', 'Merci ! Votre avis a été envoyé et sera publié après une vérification rapide.');
     }
 

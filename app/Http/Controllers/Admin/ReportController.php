@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateReportAdminRequest;
 use App\Models\Report;
 use App\Models\User;
 use App\View\Components\StatusBadge;
@@ -27,10 +28,10 @@ class ReportController extends Controller
         $kanban = $request->query('vue') === 'kanban';
 
         $reports = Report::withTarget()->with('assignee')
-            ->when(array_key_exists($type, $types), fn (Builder $query) => $query->where('type', $type))
-            ->when(array_key_exists($status, $statuses), fn (Builder $query) => $query->where('status', $status))
-            ->when(array_key_exists($priority, $priorities), fn (Builder $query) => $query->where('priority', $priority))
-            ->when(array_key_exists($period, self::PERIODS), fn (Builder $query) => $query->where('created_at', '>=', now()->subDays((int) $period)))
+            ->when(array_key_exists($type, $types), fn(Builder $query) => $query->where('type', $type))
+            ->when(array_key_exists($status, $statuses), fn(Builder $query) => $query->where('status', $status))
+            ->when(array_key_exists($priority, $priorities), fn(Builder $query) => $query->where('priority', $priority))
+            ->when(array_key_exists($period, self::PERIODS), fn(Builder $query) => $query->where('created_at', '>=', now()->subDays((int) $period)))
             // Most urgent first, then newest
             ->orderByRaw("case priority when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end")
             ->latest();
@@ -53,7 +54,7 @@ class ReportController extends Controller
         return view('admin.reports.show', [
             'report' => Report::where('ref', $ref)
                 ->withTarget()
-                ->with(['reporter' => fn ($query) => $query->withCount('reports'), 'assignee', 'evidence', 'messages.user', 'notes.user', 'history'])
+                ->with(['reporter' => fn($query) => $query->withCount('reports'), 'assignee', 'evidence', 'messages.user', 'notes.user', 'history'])
                 ->firstOrFail(),
             'statuses' => StatusBadge::options('report'),
             'priorities' => StatusBadge::options('priority'),
@@ -61,23 +62,18 @@ class ReportController extends Controller
         ]);
     }
 
-    public function update(Request $request, string $ref): RedirectResponse
+    public function update(UpdateReportAdminRequest $request, string $ref): RedirectResponse
     {
         $report = Report::where('ref', $ref)->firstOrFail();
 
-        $validated = $request->validate([
-            'status' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('report')))],
-            'priority' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('priority')))],
-            'assignee_id' => ['nullable', 'integer'],
-            'resolution' => ['nullable', 'required_if:status,confirmed,rejected,resolved', 'string', 'max:1000'],
-        ], ['resolution.required_if' => 'Une décision motivée est requise pour clôturer le signalement.'], ['resolution' => 'décision']);
+        $validated = $request->validated();
 
         $oldStatus = $report->status;
         $report->update($validated);
 
         if ($oldStatus !== $validated['status']) {
             $report->history()->create([
-                'label' => 'Statut changé : '.StatusBadge::labelFor('report', $validated['status']),
+                'label' => 'Statut changé : ' . StatusBadge::labelFor('report', $validated['status']),
                 'author' => $request->user()->name,
             ]);
         }
@@ -88,19 +84,19 @@ class ReportController extends Controller
     public function status(Request $request, string $ref): RedirectResponse
     {
         $report = Report::where('ref', $ref)->firstOrFail();
-        $data = $request->validate(['status' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('report')))]]);
+        $data = $request->validate(['status' => ['required', 'in:' . implode(',', array_keys(StatusBadge::options('report')))]]);
 
         $oldStatus = $report->status;
         $report->update(['status' => $data['status']]);
 
         if ($oldStatus !== $data['status']) {
             $report->history()->create([
-                'label' => 'Statut changé : '.StatusBadge::labelFor('report', $data['status']),
+                'label' => 'Statut changé : ' . StatusBadge::labelFor('report', $data['status']),
                 'author' => $request->user()->name,
             ]);
         }
 
-        return back()->with('success', "{$report->ref} → ".StatusBadge::labelFor('report', $data['status']).'.');
+        return back()->with('success', "{$report->ref} → " . StatusBadge::labelFor('report', $data['status']) . '.');
     }
 
     public function note(Request $request, string $ref): RedirectResponse
