@@ -48,7 +48,8 @@
             @if ($product)
                 <x-nt.product-image :product="$product" size="md" class="mb-4 aspect-[4/3] rounded-lg" />
             @endif
-            <x-nt.form.file name="image" accept=".jpg,.jpeg,.png,.webp" hint="JPG, PNG ou WebP — 4 Mo maximum." />
+            <x-nt.form.file name="image" accept=".jpg,.jpeg,.png,.webp" :required="! $product"
+                            :hint="'JPG, PNG ou WebP — 4 Mo maximum, de 400 × 300 à 4000 × 4000 px.'.($product ? ' Laissez vide pour garder l\'image actuelle.' : '')" />
         </x-nt.card>
     </div>
 </form>

@@ -2,6 +2,7 @@
 
 return [
     'accepted' => 'Vous devez accepter le champ :attribute.',
+    'after_or_equal' => 'Le champ :attribute doit être une date postérieure ou égale au :date.',
     'array' => 'Le champ :attribute doit être une liste.',
     'between' => [
         'array' => 'Le champ :attribute doit contenir entre :min et :max éléments.',
@@ -13,8 +14,12 @@ return [
     'confirmed' => 'La confirmation du champ :attribute ne correspond pas.',
     'current_password' => 'Le mot de passe est incorrect.',
     'date' => 'Le champ :attribute n\'est pas une date valide.',
+    'date_format' => 'Le champ :attribute doit respecter le format :format.',
+    'decimal' => 'Le champ :attribute doit comporter :decimal décimales.',
+    'dimensions' => 'Les dimensions de l\'image :attribute ne sont pas valides.',
     'distinct' => 'Le champ :attribute contient une valeur en double.',
     'email' => 'Le champ :attribute doit être une adresse e-mail valide.',
+    'exists' => 'La valeur sélectionnée pour :attribute est invalide.',
     'file' => 'Le champ :attribute doit être un fichier.',
     'image' => 'Le champ :attribute doit être une image.',
     'in' => 'La valeur sélectionnée pour :attribute est invalide.',
@@ -97,6 +102,11 @@ return [
         'composition' => 'composition',
         'certifications' => 'certifications',
         'issuer' => 'organisme',
+        'short_name' => 'nom court',
+        'expires_at' => 'date d\'expiration',
+        'guarantees' => 'garanties',
+        'limits' => 'limites',
+        'image' => 'image',
         'criteria' => 'critères',
         'city' => 'ville',
         'code' => 'code de lot',
