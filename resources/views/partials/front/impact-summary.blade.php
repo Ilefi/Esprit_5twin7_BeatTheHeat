@@ -28,7 +28,14 @@
                 </div>
             @endforeach
         </dl>
-        <p class="mt-4 text-xs text-muted-foreground">Mis à jour {{ $impact->updated_at->diffForHumans() }} · <a href="{{ route('front.impact.index') }}" class="nt-link">Méthodologie</a></p>
+        <p class="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <x-nt.badge variant="info" icon="fa-flask">{{ \App\Support\EcoScore::METHODOLOGIES[$impact->methodology] }}</x-nt.badge>
+            @if ($impact->source)
+                <span>Source : {{ $impact->source }}</span> ·
+            @endif
+            <span>Mis à jour {{ $impact->updated_at->diffForHumans() }}</span> ·
+            <a href="{{ route('front.impact.index') }}" class="nt-link">Comment le score est calculé</a>
+        </p>
     </div>
 
     @unless ($compact ?? false)

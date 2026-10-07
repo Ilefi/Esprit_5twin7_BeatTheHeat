@@ -55,10 +55,15 @@
                     </div>
 
                     <div class="mt-5">
-                        <p class="mb-2 text-sm font-semibold">Certifications vérifiées</p>
+                        <p class="mb-2 text-sm font-semibold">Certifications</p>
                         <div class="flex flex-wrap gap-2">
                             @forelse ($product->certifications as $certification)
-                                <a href="{{ route('front.certifications.show', $certification->slug) }}"><x-nt.cert-badge :certification="$certification" full class="px-3 py-1 text-sm" /></a>
+                                <a href="{{ route('front.certifications.show', $certification->slug) }}" class="inline-flex items-center gap-1.5">
+                                    <x-nt.cert-badge :certification="$certification" full @class(['px-3 py-1 text-sm', 'opacity-60 line-through' => $certification->is_expired]) />
+                                    @if ($certification->is_expired)
+                                        <x-nt.badge variant="danger">Expirée</x-nt.badge>
+                                    @endif
+                                </a>
                             @empty
                                 <span class="text-sm text-muted-foreground">Aucune certification déclarée.</span>
                             @endforelse
@@ -108,10 +113,19 @@
                         <x-nt.card>
                             <div class="flex items-start justify-between gap-3">
                                 <x-nt.cert-badge :certification="$certification" full />
-                                <x-nt.badge variant="success" icon="fa-circle-check">Certificat vérifié</x-nt.badge>
+                                @if ($certification->is_expired)
+                                    <x-nt.badge variant="danger" icon="fa-calendar-xmark">Certificat expiré</x-nt.badge>
+                                @else
+                                    <x-nt.badge variant="success" icon="fa-circle-check">Certificat valide</x-nt.badge>
+                                @endif
                             </div>
                             <p class="mt-3 text-sm text-foreground/85">{{ $certification->description }}</p>
-                            <p class="mt-2 text-xs text-muted-foreground">Délivré par {{ $certification->issuer }}</p>
+                            <p class="mt-2 text-xs text-muted-foreground">
+                                Délivré par {{ $certification->issuer }}
+                                @if ($certification->expires_at)
+                                    · {{ $certification->is_expired ? 'Expiré depuis le' : 'Valide jusqu\'au' }} {{ $certification->expires_at->translatedFormat('d F Y') }}
+                                @endif
+                            </p>
                             <x-slot:footer>
                                 <a href="{{ route('front.certifications.show', $certification->slug) }}" class="nt-link text-sm">Ce que garantit ce label</a>
                             </x-slot:footer>
@@ -152,7 +166,11 @@
             </x-nt.tab-panel>
 
             <x-nt.tab-panel name="empreinte">
-                @include('partials.front.impact-summary', ['product' => $product])
+                @if ($product->impact)
+                    @include('partials.front.impact-summary', ['product' => $product])
+                @else
+                    <x-nt.empty-state icon="fa-leaf" title="Empreinte en cours d'évaluation" description="Les indicateurs environnementaux de ce produit n'ont pas encore été publiés." />
+                @endif
             </x-nt.tab-panel>
 
             <x-nt.tab-panel name="avis">

@@ -26,6 +26,7 @@ Database is **MySQL** (XAMPP defaults in `.env.example`: `127.0.0.1:3306`, datab
 composer install && npm install
 cp .env.example .env && php artisan key:generate
 php artisan migrate --seed   # admin@ / actor@ / consumer@nutritrace.tn, password "password"
+php artisan storage:link     # serves uploads (product images, report evidence) from the public disk
 npm run build                # or keep `npm run dev` running — views load assets only through @vite
 ```
 

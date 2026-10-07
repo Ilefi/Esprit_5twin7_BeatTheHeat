@@ -14,6 +14,13 @@
 @endsection
 
 @section('content')
+    @if ($missing)
+        <x-nt.alert type="warning" title="Empreintes manquantes" class="mb-6">
+            {{ trans_choice(':count produit n\'a|:count produits n\'ont', $missing) }} pas encore d'empreinte : leur éco-score n'est pas affiché.
+            <a href="{{ route('admin.impacts.create') }}" class="nt-link">Saisir une empreinte</a>
+        </x-nt.alert>
+    @endif
+
     <nav aria-label="Filtrer par éco-score" class="mb-6 grid grid-cols-3 gap-3 sm:grid-cols-6">
         <a href="{{ route('admin.impacts.index') }}" @class(['nt-card p-3 text-center transition hover:border-primary', 'ring-2 ring-primary' => ! request('eco')])>
             <span class="block font-heading text-xl font-bold">{{ $distribution->sum() }}</span><span class="text-xs text-muted-foreground">Tous</span>
