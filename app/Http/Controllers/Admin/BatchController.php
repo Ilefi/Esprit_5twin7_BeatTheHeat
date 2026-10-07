@@ -10,6 +10,8 @@ use App\View\Components\StatusBadge;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class BatchController extends Controller
@@ -46,9 +48,10 @@ class BatchController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->validated($request);
+        $batch = Batch::create($this->validated($request));
 
-        return redirect()->route('admin.batches.index')->with('success', "Le lot {$data['code']} a été créé. Ajoutez maintenant ses étapes.");
+        return redirect()->route('admin.batches.show', $batch->id)
+            ->with('success', "Le lot {$batch->code} a été créé. Ajoutez maintenant ses étapes.");
     }
 
     public function show(int $batch): View
@@ -67,17 +70,24 @@ class BatchController extends Controller
 
     public function update(Request $request, int $batch): RedirectResponse
     {
-        Batch::findOrFail($batch);
-        $data = $this->validated($request);
+        $batch = Batch::findOrFail($batch);
+        $batch->update($this->validated($request, $batch->id));
 
-        return redirect()->route('admin.batches.show', $batch)->with('success', "Le lot {$data['code']} a été mis à jour.");
+        return redirect()->route('admin.batches.show', $batch->id)
+            ->with('success', "Le lot {$batch->code} a été mis à jour.");
     }
 
     public function destroy(int $batch): RedirectResponse
     {
         $batch = Batch::findOrFail($batch);
 
-        return redirect()->route('admin.batches.index')->with('success', "Le lot {$batch->code} a été supprimé.");
+        DB::transaction(function () use ($batch) {
+            $batch->steps()->delete();
+            $batch->delete();
+        });
+
+        return redirect()->route('admin.batches.index')
+            ->with('success', "Le lot {$batch->code} a été supprimé.");
     }
 
     private function formData(): array
@@ -88,11 +98,11 @@ class BatchController extends Controller
         ];
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, ?int $ignoreId = null): array
     {
         return $request->validate([
-            'code' => ['required', 'string', 'max:30', 'regex:/^NT-\d{4}-[A-Z]{3}-\d{4}$/'],
-            'product_id' => ['required', 'integer'],
+            'code' => ['required', 'string', 'max:30', 'regex:/^NT-\d{4}-[A-Z]{3}-\d{4}$/', Rule::unique('batches', 'code')->ignore($ignoreId)],
+            'product_id' => ['required', 'integer', 'exists:products,id'],
             'quantity' => ['required', 'string', 'max:60'],
             'production_date' => ['required', 'date'],
             'status' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('batch')))],
