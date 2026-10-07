@@ -131,4 +131,12 @@ class ReportController extends Controller
 
         return redirect()->route('admin.reports.show', $report->ref)->with('success', "Réponse envoyée à {$report->reporter->name}.");
     }
+
+    public function aiAnalyze(string $ref, \App\Services\AiAnalysisService $aiService): \Illuminate\Http\JsonResponse
+    {
+        $report = Report::where('ref', $ref)->withTarget()->firstOrFail();
+        $result = $aiService->analyzeReport($report);
+
+        return response()->json($result);
+    }
 }

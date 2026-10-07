@@ -54,6 +54,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::patch('signalements/{ref}/statut', [Admin\ReportController::class, 'status'])->name('reports.status');
     Route::post('signalements/{ref}/notes', [Admin\ReportController::class, 'note'])->name('reports.notes.store');
     Route::post('signalements/{ref}/reponse', [Admin\ReportController::class, 'reply'])->name('reports.reply');
+    Route::post('signalements/{ref}/ai-analyse', [Admin\ReportController::class, 'aiAnalyze'])->name('reports.ai.analyze');
 
     // Utilisateurs
     Route::get('utilisateurs', [Admin\UserController::class, 'index'])->name('users.index');

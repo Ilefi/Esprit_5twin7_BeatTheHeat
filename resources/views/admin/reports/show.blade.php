@@ -90,6 +90,84 @@
                 </a>
             </x-nt.card>
 
+            {{-- Assistant IA Anti-Greenwashing --}}
+            <div x-data="{
+                loading: false,
+                analyzed: false,
+                data: null,
+                analyze() {
+                    this.loading = true;
+                    fetch('{{ route('admin.reports.ai.analyze', $report->ref) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        this.data = res;
+                        this.analyzed = true;
+                        this.loading = false;
+                    })
+                    .catch(err => {
+                        alert('Erreur lors de l\'analyse IA.');
+                        this.loading = false;
+                    });
+                },
+                applyRecommendation() {
+                    if (!this.data) return;
+                    const resField = document.querySelector('textarea[name=\'resolution\']');
+                    if (resField) {
+                        resField.value = this.data.recommended_resolution;
+                    }
+                    const statusField = document.querySelector('select[name=\'status\']');
+                    if (statusField && this.data.recommended_status) {
+                        statusField.value = this.data.recommended_status;
+                    }
+                }
+            }" class="nt-card border-primary/30 bg-primary/5 p-5">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
+                            <i class="fa-solid fa-robot"></i>
+                        </span>
+                        <div>
+                            <h2 class="text-sm font-bold text-foreground">Assistant IA Anti-Greenwashing</h2>
+                            <p class="text-xs text-muted-foreground">Analyse prédictive & aide à la décision</p>
+                        </div>
+                    </div>
+                    <button type="button" x-on:click="analyze()" :disabled="loading" class="nt-btn nt-btn-primary nt-btn-sm">
+                        <template x-if="!loading">
+                            <span><i class="fa-solid fa-wand-magic-sparkles me-1"></i> Analyser avec l'IA</span>
+                        </template>
+                        <template x-if="loading">
+                            <span><i class="fa-solid fa-spinner fa-spin me-1"></i> Analyse en cours...</span>
+                        </template>
+                    </button>
+                </div>
+
+                <div x-show="analyzed" x-transition class="mt-4 space-y-3 border-t border-primary/20 pt-4 text-xs">
+                    <div class="flex items-center justify-between">
+                        <span class="font-semibold text-muted-foreground">Indice de Greenwashing estimé :</span>
+                        <span class="nt-badge" :class="data?.risk_score >= 70 ? 'bg-danger text-danger-foreground' : (data?.risk_score >= 45 ? 'bg-gold text-gold-foreground' : 'bg-primary text-primary-foreground')">
+                            <strong x-text="data?.risk_score + '%'"></strong> · <span x-text="data?.risk_level"></span>
+                        </span>
+                    </div>
+                    <div class="rounded-lg bg-surface p-3 border">
+                        <p class="font-semibold text-foreground">💡 Constat de l'IA :</p>
+                        <p class="mt-1 text-muted-foreground" x-text="data?.analysis"></p>
+                    </div>
+                    <div class="rounded-lg bg-surface p-3 border">
+                        <p class="font-semibold text-foreground">⚖️ Décision suggérée :</p>
+                        <p class="mt-1 text-muted-foreground" x-text="data?.recommended_resolution"></p>
+                    </div>
+                    <button type="button" x-on:click="applyRecommendation()" class="nt-btn nt-btn-outline nt-btn-sm w-full">
+                        <i class="fa-solid fa-check me-1"></i> 🪄 Insérer automatiquement cette décision
+                    </button>
+                </div>
+            </div>
+
             {{-- Workflow --}}
             <x-nt.card>
                 <x-slot:header><h2 class="text-base font-semibold">Traitement</h2></x-slot:header>
