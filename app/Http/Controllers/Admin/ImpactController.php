@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ImpactRequest;
 use App\Models\EmissionFactor;
 use App\Models\Impact;
 use App\Models\Product;
@@ -26,39 +27,43 @@ class ImpactController extends Controller
         return view('admin.impacts.index', [
             'products' => $products->paginate(8)->withQueryString(),
             'distribution' => Impact::pluck('eco_score')->countBy(),
+            'missing' => Product::doesntHave('impact')->count(),
             'packaging' => EcoScore::PACKAGING_LABELS,
         ]);
     }
 
     public function create(): View
     {
-        return view('admin.impacts.create', $this->formData());
+        return view('admin.impacts.create', $this->formData() + [
+            // One footprint per product: only products without one can be picked.
+            'products' => Product::doesntHave('impact')->orderBy('id')->pluck('name', 'id')->all(),
+        ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(ImpactRequest $request): RedirectResponse
     {
-        $data = $this->validated($request);
-        $grade = $this->grade($data);
+        $impact = Impact::create($request->impactData());
 
-        return redirect()->route('admin.impacts.index')->with('success', "Empreinte enregistrée — éco-score calculé : {$grade}.");
+        return redirect()->route('admin.impacts.index')->with('success', "Empreinte de « {$impact->product->name} » enregistrée — éco-score calculé : {$impact->eco_score}.");
     }
 
     public function edit(int $impact): View
     {
-        return view('admin.impacts.edit', $this->formData() + ['product' => Product::with('impact')->findOrFail($impact)]);
+        return view('admin.impacts.edit', $this->formData() + ['product' => $this->productWithImpact($impact)]);
     }
 
-    public function update(Request $request, int $impact): RedirectResponse
+    public function update(ImpactRequest $request, int $impact): RedirectResponse
     {
-        $product = Product::findOrFail($impact);
-        $grade = $this->grade($this->validated($request));
+        $product = $this->productWithImpact($impact);
+        $product->impact->update($request->impactData());
 
-        return redirect()->route('admin.impacts.index')->with('success', "Empreinte de « {$product->name} » mise à jour — éco-score : {$grade}.");
+        return redirect()->route('admin.impacts.index')->with('success', "Empreinte de « {$product->name} » mise à jour — éco-score : {$product->impact->eco_score}.");
     }
 
     public function destroy(int $impact): RedirectResponse
     {
-        $product = Product::findOrFail($impact);
+        $product = $this->productWithImpact($impact);
+        $product->impact->delete();
 
         return redirect()->route('admin.impacts.index')->with('success', "Empreinte de « {$product->name} » supprimée.");
     }
@@ -73,27 +78,14 @@ class ImpactController extends Controller
     private function formData(): array
     {
         return [
-            'products' => Product::orderBy('id')->pluck('name', 'id')->all(),
             'packaging' => EcoScore::PACKAGING_LABELS,
+            'methodologies' => EcoScore::METHODOLOGIES,
         ];
     }
 
-    private function validated(Request $request): array
+    /** Footprints are addressed by their product id (/admin/empreinte/{product}/edit). */
+    private function productWithImpact(int $product): Product
     {
-        return $request->validate([
-            'product_id' => ['required', 'integer'],
-            'co2_per_kg' => ['required', 'numeric', 'min:0', 'max:100'],
-            'water_per_kg' => ['required', 'numeric', 'min:0', 'max:50000'],
-            'distance_km' => ['required', 'numeric', 'min:0', 'max:20000'],
-            'packaging' => ['required', 'in:'.implode(',', array_keys(EcoScore::PACKAGING_LABELS))],
-            'seasonal' => ['nullable', 'boolean'],
-        ]);
-    }
-
-    private function grade(array $data): string
-    {
-        return EcoScore::grade(EcoScore::points(
-            (float) $data['co2_per_kg'], (float) $data['water_per_kg'], (float) $data['distance_km'], $data['packaging'], (bool) ($data['seasonal'] ?? false),
-        ));
+        return Product::with('impact')->has('impact')->findOrFail($product);
     }
 }

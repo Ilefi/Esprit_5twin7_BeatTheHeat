@@ -26,6 +26,10 @@
     $label = \App\Support\EcoScore::grades()[$grade]['label'] ?? '';
 @endphp
 
+@if (! array_key_exists($grade, $active))
+    {{-- No footprint yet (the product has no Impact record). --}}
+    <span {{ $attributes->class(['nt-badge']) }}><i class="fa-solid fa-hourglass-half text-[0.7em]" aria-hidden="true"></i>Éco-score non évalué</span>
+@else
 <div {{ $attributes->class(['inline-flex flex-col items-start gap-1']) }}>
     <div class="inline-flex items-center rounded-lg bg-surface shadow-sm ring-1 ring-border {{ $sizes['wrap'] }}"
          role="img" aria-label="Éco-score {{ $grade }} : {{ $label }}">
@@ -41,3 +45,4 @@
         <span class="text-xs font-medium text-muted-foreground">{{ $label }}</span>
     @endif
 </div>
+@endif

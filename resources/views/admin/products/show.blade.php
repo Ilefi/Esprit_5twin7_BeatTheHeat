@@ -44,9 +44,17 @@
             <x-nt.card>
                 <x-slot:header>
                     <h2 class="text-base font-semibold">Empreinte environnementale</h2>
-                    <a href="{{ route('admin.impacts.edit', $product->id) }}" class="nt-link text-sm">Modifier</a>
+                    @if ($product->impact)
+                        <a href="{{ route('admin.impacts.edit', $product->id) }}" class="nt-link text-sm">Modifier</a>
+                    @endif
                 </x-slot:header>
-                @include('partials.front.impact-summary', ['product' => $product, 'compact' => true])
+                @if ($product->impact)
+                    @include('partials.front.impact-summary', ['product' => $product, 'compact' => true])
+                @else
+                    <x-nt.empty-state icon="fa-leaf" title="Aucune empreinte" description="L'éco-score de ce produit n'est pas encore calculé.">
+                        <x-nt.button :href="route('admin.impacts.create', ['produit' => $product->id])" size="sm" icon="fa-plus">Saisir l'empreinte</x-nt.button>
+                    </x-nt.empty-state>
+                @endif
             </x-nt.card>
 
             <x-nt.data-table title="Lots" caption="Lots de ce produit">
