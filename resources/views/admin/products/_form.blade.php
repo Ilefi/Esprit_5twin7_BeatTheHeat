@@ -1,5 +1,5 @@
 {{-- Shared by create & edit: @include('admin.products._form', ['product' => $product ?? null]) --}}
-<form method="POST" action="{{ $product ? route('admin.products.update', $product->id) : route('admin.products.store') }}" enctype="multipart/form-data" class="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+<form method="POST" action="{{ $product ? route('admin.products.update', $product->id) : route('admin.products.store') }}" enctype="multipart/form-data" novalidate class="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
     @csrf
     @if ($product)
         @method('PUT')
@@ -34,7 +34,7 @@
         <x-nt.card>
             <x-slot:header><h2 class="text-base font-semibold">Publication</h2></x-slot:header>
             <div class="space-y-5">
-                <x-nt.form.select name="status" label="Statut" :options="$statuses" :value="$product?->status ?? 'draft'" required />
+                <x-nt.form.select name="status" label="Statut" :options="$statuses" :value="$product?->status ?? 'published'" required />
                 <x-nt.form.input name="price" type="number" step="0.01" min="0" label="Prix (DT)" :value="$product?->price" required />
             </div>
             <x-slot:footer>

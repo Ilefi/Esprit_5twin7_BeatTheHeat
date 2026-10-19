@@ -20,7 +20,7 @@ NutriTrace (repo: Esprit_5twin7_BeatTheHeat) — a "farm to fork" food traceabil
 
 ## Setup
 
-Database is **MySQL** (XAMPP defaults in `.env.example`: `127.0.0.1:3306`, database `laravel`, user `root`, empty password — each teammate adjusts their own gitignored `.env`):
+Database is **MySQL** (XAMPP defaults in `.env.example`: `127.0.0.1:3306`, database `laravel`, user `root`, empty password — each teammate adjusts their own gitignored `.env`). Without XAMPP, `docker compose up -d` starts MySQL 8.0 from `compose.yaml`, reading `DB_PORT`/`DB_DATABASE`/`DB_PASSWORD` from `.env` (set `DB_PORT=3307` if a local MySQL already holds 3306):
 
 ```
 composer install && npm install
