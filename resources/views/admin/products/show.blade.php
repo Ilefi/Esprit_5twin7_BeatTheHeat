@@ -25,7 +25,7 @@
                         <span class="font-heading text-xl font-bold">{{ number_format($product->price, 2, ',', ' ') }} DT</span>
                     </div>
                     <dl class="space-y-2 text-sm">
-                        @foreach (['Région' => $product->region, 'Format' => $product->format, 'Transformateur' => $product->processor?->name ?? '—', 'Créé le' => $product->created_at->translatedFormat('d M Y')] as $label => $value)
+                        @foreach (['Région' => $product->region, 'Format' => $product->format, 'Code-barres' => $product->barcode ?? '—', 'Transformateur' => $product->processor?->name ?? '—', 'Créé le' => $product->created_at->translatedFormat('d M Y')] as $label => $value)
                             <div class="flex justify-between gap-3"><dt class="text-muted-foreground">{{ $label }}</dt><dd class="text-right font-medium">{{ $value }}</dd></div>
                         @endforeach
                     </dl>

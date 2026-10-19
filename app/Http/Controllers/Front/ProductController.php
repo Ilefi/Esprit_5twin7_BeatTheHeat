@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Certification;
 use App\Models\Product;
+use App\Services\OpenFoodFacts;
+use App\Services\ProductRecommender;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -53,7 +55,7 @@ class ProductController extends Controller
         ]);
     }
 
-    public function show(Request $request, string $slug): View
+    public function show(Request $request, string $slug, ProductRecommender $recommender, OpenFoodFacts $openFoodFacts): View
     {
         $product = Product::where('slug', $slug)
             ->with(['category', 'producer', 'processor', 'certifications', 'impact'])
@@ -91,8 +93,15 @@ class ProductController extends Controller
 
         $distribution = collect([5, 4, 3, 2, 1])->mapWithKeys(fn ($star) => [$star => $allReviews->where('rating', $star)->count()]);
 
+        $alternatives = $recommender->alternatives($product);
+
         return view('front.products.show', [
             'product' => $product,
+            'alternatives' => $alternatives,
+            'categoryRank' => $recommender->categoryBenchmark($product),
+            'nutrition' => $product->barcode ? $openFoodFacts->product($product->barcode) : null,
+            'offBenchmark' => $product->category->off_tag ? $openFoodFacts->categoryBenchmark($product->category->off_tag) : null,
+            'categoryGrades' => $recommender->categoryGrades($product->category_id),
             'batch' => $product->firstBatch()->with('steps.actor')->first(),
             'reviews' => $reviews->values(),
             'reviewStats' => (object) [
@@ -104,7 +113,7 @@ class ProductController extends Controller
                 'value' => $allReviews->avg('value_rating') ?? 0,
             ],
             'similarProducts' => Product::published()->forCards()
-                ->whereKeyNot($product->id)
+                ->whereKeyNot([$product->id, ...$alternatives->modelKeys()])
                 ->where(fn (Builder $query) => $query->where('category_id', $product->category_id)->orWhere('producer_id', $product->producer_id))
                 ->orderBy('id')
                 ->take(4)

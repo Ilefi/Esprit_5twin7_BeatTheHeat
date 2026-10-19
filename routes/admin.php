@@ -13,6 +13,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/', Admin\DashboardController::class)->name('dashboard');
 
     // Module 1 — Produits & Certifications
+    Route::get('produits/open-food-facts/{barcode}', [Admin\ProductController::class, 'lookup'])->name('products.lookup')->where('barcode', '[0-9]{8,14}');
     Route::resource('produits', Admin\ProductController::class)
         ->names('products')->parameters(['produits' => 'product'])->whereNumber('product');
 
