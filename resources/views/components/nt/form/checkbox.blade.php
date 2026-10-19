@@ -6,19 +6,21 @@
     'checked' => false,
     'id' => null,
     'required' => false,
+    'bag' => 'default',
+    'useOld' => true,
 ])
 
 @php
     $key = trim(str_replace(['[]', '[', ']'], ['', '.', ''], $name), '.');
     $id ??= str_replace('.', '_', $key).(str_ends_with($name, '[]') ? '_'.\Illuminate\Support\Str::slug((string) $value, '_') : '');
-    $old = old($key);
+    $old = $useOld ? old($key) : null;
     $isChecked = is_array($old) ? in_array((string) $value, array_map('strval', $old), true) : ($old !== null ? (string) $old === (string) $value : $checked);
 @endphp
 
 <div {{ $attributes->only('class')->class(['space-y-1']) }}>
     <label for="{{ $id }}" class="flex cursor-pointer items-start gap-3">
         <input id="{{ $id }}" type="checkbox" name="{{ $name }}" value="{{ $value }}" @checked($isChecked) @required($required)
-               @error($key) aria-invalid="true" @enderror
+               @error($key, $bag) aria-invalid="true" @enderror
                {{ $attributes->except('class')->class(['nt-checkbox mt-0.5 shrink-0']) }}>
         <span>
             <span class="text-sm font-medium">{{ $label }}</span>
@@ -27,7 +29,7 @@
             @endif
         </span>
     </label>
-    @error($key)
+    @error($key, $bag)
         <p class="flex items-center gap-1.5 text-sm text-danger-strong">
             <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>{{ $message }}
         </p>

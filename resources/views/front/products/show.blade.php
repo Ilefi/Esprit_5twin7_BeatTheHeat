@@ -52,6 +52,12 @@
                             <p class="text-xs text-muted-foreground">{{ $product->format }}</p>
                             <p class="font-heading text-3xl font-bold">{{ number_format($product->price, 2, ',', ' ') }} <span class="text-lg">DT</span></p>
                         </div>
+                        @if ($categoryRank)
+                            <a href="#nutrition" class="flex w-full items-center gap-2 border-t pt-4 text-sm hover:text-primary-strong">
+                                <i class="fa-solid fa-ranking-star text-primary-strong" aria-hidden="true"></i>
+                                <span>Plus durable que <strong>{{ $categoryRank['better_than'] }} %</strong> des produits « {{ $product->category->name }} »</span>
+                            </a>
+                        @endif
                     </div>
 
                     <div class="mt-5">
@@ -74,7 +80,7 @@
                         @if ($batch)
                             <x-nt.button :href="route('front.traceability.batch', $batch->code)" icon="fa-route">Voir le parcours</x-nt.button>
                         @endif
-                        <x-nt.button :href="route('front.impact.compare', ['produits' => array_filter([$product->id, $similarProducts->first()?->id])])" variant="outline" icon="fa-scale-unbalanced">Comparer l'empreinte</x-nt.button>
+                        <x-nt.button :href="route('front.impact.compare', ['produits' => array_filter([$product->id, ($alternatives->first() ?? $similarProducts->first())?->id])])" variant="outline" icon="fa-scale-unbalanced">Comparer l'empreinte</x-nt.button>
                         <x-nt.button :href="route('front.reports.create', ['cible' => 'product', 'id' => $product->id])" variant="ghost" icon="fa-flag" class="text-danger-strong">Signaler ce produit</x-nt.button>
                     </div>
                 </div>
@@ -88,6 +94,7 @@
             'certifications' => ['label' => 'Certifications', 'icon' => 'fa-award', 'count' => $product->certifications->count()],
             'tracabilite' => ['label' => 'Traçabilité', 'icon' => 'fa-route'],
             'empreinte' => ['label' => 'Empreinte', 'icon' => 'fa-leaf'],
+            'nutrition' => ['label' => 'Nutrition & repères', 'icon' => 'fa-heart-pulse'],
             'avis' => ['label' => 'Avis', 'icon' => 'fa-star', 'count' => $reviewStats->count],
         ]" :active="$errors->review->any() || request()->hasAny(['note', 'tri_avis', 'verifie']) ? 'avis' : 'description'">
 
@@ -173,11 +180,19 @@
                 @endif
             </x-nt.tab-panel>
 
+            <x-nt.tab-panel name="nutrition">
+                @include('partials.front.product.nutrition')
+            </x-nt.tab-panel>
+
             <x-nt.tab-panel name="avis">
                 @include('partials.front.reviews.block')
             </x-nt.tab-panel>
         </x-nt.tabs>
     </section>
+
+    @if ($alternatives->isNotEmpty())
+        @include('partials.front.product.alternatives')
+    @endif
 
     @if ($similarProducts->isNotEmpty())
         <section class="nt-section bg-surface" aria-labelledby="similar-title">

@@ -8,8 +8,10 @@ use App\Models\Actor;
 use App\Models\Category;
 use App\Models\Certification;
 use App\Models\Product;
+use App\Services\OpenFoodFacts;
 use App\View\Components\StatusBadge;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -114,6 +116,39 @@ class ProductController extends Controller
         }
 
         return redirect()->route('admin.products.index')->with('success', "Le produit « {$product->name} » a été supprimé.");
+    }
+
+    /**
+     * Pre-fills the product form from Open Food Facts (JSON for the ntBarcodeImport Alpine component).
+     * The category is suggested by matching the OFF categories of the product with our categories' off_tag.
+     */
+    public function lookup(string $barcode, OpenFoodFacts $openFoodFacts): JsonResponse
+    {
+        $data = $openFoodFacts->product($barcode);
+        if (! $data) {
+            return response()->json(['message' => "Aucun produit trouvé sur Open Food Facts pour le code-barres {$barcode}."], 404);
+        }
+
+        $category = Category::whereIn('off_tag', $data['categories'])->orderBy('id')->first();
+
+        return response()->json([
+            'fields' => array_filter([
+                'name' => $data['name'],
+                'format' => $data['quantity'],
+                'description' => $data['description'],
+                'composition' => $data['ingredients'],
+                'category_id' => $category?->id,
+            ]),
+            'summary' => [
+                'name' => $data['name'],
+                'brands' => $data['brands'],
+                'nutriscore' => $data['nutriscore'],
+                'nova' => $data['nova'] ? OpenFoodFacts::NOVA_LABELS[$data['nova']] : null,
+                'allergens' => $data['allergens'],
+                'category' => $category?->name,
+                'url' => $data['url'],
+            ],
+        ]);
     }
 
     private function formData(): array

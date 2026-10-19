@@ -20,6 +20,7 @@ class ProductRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'min:3', 'max:150', Rule::unique('products')->ignore($this->route('product'))],
+            'barcode' => ['nullable', 'regex:/^(\d{8}|\d{12,14})$/', Rule::unique('products')->ignore($this->route('product'))],
             'category_id' => ['required', 'integer', Rule::exists('categories', 'id')],
             'producer_id' => ['required', 'integer', Rule::exists('actors', 'id')->where('type', 'producer')],
             'region' => ['required', 'string', 'max:80'],
@@ -42,6 +43,8 @@ class ProductRequest extends FormRequest
     {
         return [
             'name.unique' => 'Un produit porte déjà ce nom.',
+            'barcode.regex' => 'Le code-barres doit compter 8, 12, 13 ou 14 chiffres (EAN / UPC).',
+            'barcode.unique' => 'Un produit utilise déjà ce code-barres.',
             'producer_id.exists' => 'Le producteur sélectionné n\'existe pas ou n\'est pas un producteur.',
             'price.decimal' => 'Le prix doit comporter au plus 2 décimales.',
             'certifications.*.exists' => 'Une des certifications sélectionnées n\'existe pas.',

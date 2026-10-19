@@ -15,25 +15,65 @@
 @section('content')
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         @foreach ($categories as $category)
-            <div class="nt-card flex items-center gap-4 p-5">
-                <span class="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary/12 text-lg text-primary-strong"><i class="fa-solid {{ $category->icon }}" aria-hidden="true"></i></span>
-                <div class="min-w-0 flex-1">
-                    <p class="truncate font-semibold">{{ $category->name }}</p>
-                    <p class="text-sm text-muted-foreground">{{ $category->products_count }} produit{{ $category->products_count > 1 ? 's' : '' }}</p>
+            @php
+                $distribution = $grades[$category->id] ?? [];
+                $rated = array_sum($distribution);
+            @endphp
+            <div class="nt-card space-y-4 p-5">
+                <div class="flex items-center gap-4">
+                    <span class="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-primary/12 text-lg text-primary-strong"><i class="fa-solid {{ $category->icon }}" aria-hidden="true"></i></span>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate font-semibold">{{ $category->name }}</p>
+                        <p class="text-sm text-muted-foreground">{{ $category->products_count }} produit{{ $category->products_count > 1 ? 's' : '' }}</p>
+                    </div>
+                    <div class="flex gap-1">
+                        <button type="button" class="nt-btn nt-btn-ghost nt-btn-icon nt-btn-sm" x-data x-on:click="$dispatch('open-modal', 'edit-category-{{ $category->id }}')" aria-label="Modifier {{ $category->name }}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
+                        <button type="button" class="nt-btn nt-btn-ghost nt-btn-icon nt-btn-sm text-danger-strong" x-data x-on:click="$dispatch('open-modal', 'delete-category-{{ $category->id }}')" aria-label="Supprimer {{ $category->name }}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+                    </div>
                 </div>
-                <div class="flex gap-1">
-                    <button type="button" class="nt-btn nt-btn-ghost nt-btn-icon nt-btn-sm" x-data x-on:click="$dispatch('open-modal', 'edit-category-{{ $category->id }}')" aria-label="Modifier {{ $category->name }}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
-                    <button type="button" class="nt-btn nt-btn-ghost nt-btn-icon nt-btn-sm text-danger-strong" x-data x-on:click="$dispatch('open-modal', 'delete-category-{{ $category->id }}')" aria-label="Supprimer {{ $category->name }}"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+
+                {{-- Sustainability profile of the category: average eco-score and A → E distribution. --}}
+                <div class="space-y-2 border-t pt-4">
+                    <div class="flex items-center justify-between gap-3 text-sm">
+                        <span class="text-muted-foreground">Éco-score moyen</span>
+                        @if ($category->eco_avg !== null)
+                            <x-nt.eco-score :grade="\App\Support\EcoScore::grade((int) round($category->eco_avg))" size="sm" />
+                        @else
+                            <span class="text-xs text-muted-foreground">Aucune empreinte</span>
+                        @endif
+                    </div>
+                    @if ($rated)
+                        <x-nt.grade-bar :distribution="$distribution" label="Répartition des éco-scores" />
+                        <p class="text-xs text-muted-foreground">{{ $rated }} produit{{ $rated > 1 ? 's' : '' }} évalué{{ $rated > 1 ? 's' : '' }}</p>
+                    @endif
                 </div>
+
+                <dl class="space-y-1.5 text-sm">
+                    <div class="flex justify-between gap-3">
+                        <dt class="text-muted-foreground">Remplaçable par</dt>
+                        <dd class="text-right font-medium">{{ $category->substitutes->pluck('name')->implode(', ') ?: '—' }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <dt class="text-muted-foreground">Open Food Facts</dt>
+                        <dd class="text-right">
+                            @if ($category->off_tag)
+                                <a href="https://world.openfoodfacts.org/category/{{ \Illuminate\Support\Str::after($category->off_tag, ':') }}" target="_blank" rel="noopener" class="nt-link font-mono text-xs">{{ $category->off_tag }}</a>
+                            @else
+                                <span class="font-medium">—</span>
+                            @endif
+                        </dd>
+                    </div>
+                </dl>
             </div>
 
-            @php $bag = 'editCategory'.$category->id; @endphp
-            <x-nt.modal :name="'edit-category-'.$category->id" title="Modifier la catégorie" :show="$errors->{$bag}->isNotEmpty()">
-                <form method="POST" action="{{ route('admin.categories.update', $category->id) }}" id="edit-category-form-{{ $category->id }}" class="space-y-5">
+            @php $bag = 'editCategory'.$category->id; $useOld = $errors->{$bag}->isNotEmpty(); @endphp
+            <x-nt.modal :name="'edit-category-'.$category->id" title="Modifier la catégorie" :show="$useOld">
+                <form method="POST" action="{{ route('admin.categories.update', $category->id) }}" id="edit-category-form-{{ $category->id }}" class="space-y-5" novalidate>
                     @csrf
                     @method('PUT')
-                    <x-nt.form.input name="name" label="Nom" :value="$category->name" :bag="$bag" :use-old="$errors->{$bag}->isNotEmpty()" :id="'category-name-'.$category->id" required />
-                    <x-nt.form.select name="icon" label="Icône" :options="$icons" :value="$category->icon" :bag="$bag" :use-old="$errors->{$bag}->isNotEmpty()" :id="'category-icon-'.$category->id" required />
+                    <x-nt.form.input name="name" label="Nom" :value="$category->name" :bag="$bag" :use-old="$useOld" :id="'category-name-'.$category->id" required />
+                    <x-nt.form.select name="icon" label="Icône" :options="$icons" :value="$category->icon" :bag="$bag" :use-old="$useOld" :id="'category-icon-'.$category->id" required />
+                    @include('admin.categories._smart-fields', ['current' => $category])
                 </form>
                 <x-slot:footer>
                     <x-nt.button variant="ghost" x-on:click="$dispatch('close-modal')">Annuler</x-nt.button>
@@ -45,11 +85,13 @@
         @endforeach
     </div>
 
-    <x-nt.modal name="create-category" title="Nouvelle catégorie" :show="$errors->createCategory->isNotEmpty()">
-        <form method="POST" action="{{ route('admin.categories.store') }}" id="create-category-form" class="space-y-5">
+    @php $bag = 'createCategory'; $useOld = $errors->createCategory->isNotEmpty(); @endphp
+    <x-nt.modal name="create-category" title="Nouvelle catégorie" :show="$useOld">
+        <form method="POST" action="{{ route('admin.categories.store') }}" id="create-category-form" class="space-y-5" novalidate>
             @csrf
             <x-nt.form.input name="name" label="Nom" bag="createCategory" id="new-category-name" required />
             <x-nt.form.select name="icon" label="Icône" :options="$icons" bag="createCategory" id="new-category-icon" placeholder="Choisir une icône" required />
+            @include('admin.categories._smart-fields', ['current' => null])
         </form>
         <x-slot:footer>
             <x-nt.button variant="ghost" x-on:click="$dispatch('close-modal')">Annuler</x-nt.button>

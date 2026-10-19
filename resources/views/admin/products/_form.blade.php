@@ -1,11 +1,46 @@
 {{-- Shared by create & edit: @include('admin.products._form', ['product' => $product ?? null]) --}}
-<form method="POST" action="{{ $product ? route('admin.products.update', $product->id) : route('admin.products.store') }}" enctype="multipart/form-data" class="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+<form method="POST" action="{{ $product ? route('admin.products.update', $product->id) : route('admin.products.store') }}" enctype="multipart/form-data" novalidate class="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
     @csrf
     @if ($product)
         @method('PUT')
     @endif
 
     <div class="space-y-6">
+        <x-nt.card x-data="ntBarcodeImport('{{ route('admin.products.lookup', '00000000') }}', @js(old('barcode', $product?->barcode) ?? ''))">
+            <x-slot:header>
+                <h2 class="text-base font-semibold">Import Open Food Facts</h2>
+                <x-nt.badge variant="info" icon="fa-barcode">Base ouverte, sans clé</x-nt.badge>
+            </x-slot:header>
+            <div class="space-y-4">
+                <div class="flex flex-wrap items-start gap-3">
+                    <x-nt.form.input name="barcode" label="Code-barres (EAN)" :value="$product?->barcode" inputmode="numeric" placeholder="3017620422003"
+                                     class="min-w-0 flex-1" x-model.trim="barcode" x-on:keydown.enter.prevent="lookup()" />
+                    <x-nt.button variant="outline" icon="fa-cloud-arrow-down" x-on:click="lookup()" x-bind:disabled="! valid || loading" class="mt-7">
+                        <span x-text="loading ? 'Recherche…' : 'Importer'">Importer</span>
+                    </x-nt.button>
+                </div>
+                <p class="text-xs text-muted-foreground">Facultatif. Remplit les champs vides depuis Open Food Facts et affiche la nutrition sur la page publique du produit.</p>
+
+                <div x-show="error" x-cloak class="flex items-center gap-2 rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger-strong" role="alert">
+                    <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i><span x-text="error"></span>
+                </div>
+
+                <div x-show="result" x-cloak class="space-y-2 rounded-lg bg-primary/8 px-4 py-3 text-sm" role="status">
+                    <p class="font-semibold text-primary-strong"><i class="fa-solid fa-circle-check" aria-hidden="true"></i> <span x-text="result?.name ?? 'Produit trouvé'"></span> <span class="font-normal text-muted-foreground" x-text="result?.brands ? '· ' + result.brands : ''"></span></p>
+                    <p class="text-muted-foreground">
+                        <span x-text="filled.length ? filled.length + ' champ(s) vide(s) rempli(s).' : 'Aucun champ vide à remplir : vos saisies sont conservées.'"></span>
+                        <span x-show="result?.category" x-text="'Catégorie suggérée : ' + result?.category + '.'"></span>
+                    </p>
+                    <p class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span x-show="result?.nutriscore" x-text="'Nutri-Score ' + result?.nutriscore"></span>
+                        <span x-show="result?.nova" x-text="result?.nova"></span>
+                        <span x-show="result?.allergens?.length" x-text="'Allergènes : ' + result?.allergens?.join(', ')"></span>
+                        <a x-bind:href="result?.url" target="_blank" rel="noopener" class="nt-link">Voir sur Open Food Facts</a>
+                    </p>
+                </div>
+            </div>
+        </x-nt.card>
+
         <x-nt.card>
             <x-slot:header><h2 class="text-base font-semibold">Informations générales</h2></x-slot:header>
             <div class="grid gap-5 sm:grid-cols-2">
@@ -34,7 +69,7 @@
         <x-nt.card>
             <x-slot:header><h2 class="text-base font-semibold">Publication</h2></x-slot:header>
             <div class="space-y-5">
-                <x-nt.form.select name="status" label="Statut" :options="$statuses" :value="$product?->status ?? 'draft'" required />
+                <x-nt.form.select name="status" label="Statut" :options="$statuses" :value="$product?->status ?? 'published'" required />
                 <x-nt.form.input name="price" type="number" step="0.01" min="0" label="Prix (DT)" :value="$product?->price" required />
             </div>
             <x-slot:footer>

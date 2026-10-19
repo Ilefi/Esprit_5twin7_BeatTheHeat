@@ -129,5 +129,8 @@ return [
         'ids' => 'sélection',
         'icon' => 'icône',
         'founded_year' => 'année de création',
+        'barcode' => 'code-barres',
+        'off_tag' => 'tag Open Food Facts',
+        'substitutes' => 'catégories de remplacement',
     ],
 ];

@@ -165,6 +165,57 @@ export default function registerComponents(Alpine) {
         },
     }));
 
+    // Admin product form: reads a barcode on Open Food Facts (through admin.products.lookup) and fills the empty fields.
+    // `url` ends with the placeholder barcode 00000000, replaced by the typed one.
+    Alpine.data('ntBarcodeImport', (url, barcode = '') => ({
+        barcode,
+        loading: false,
+        error: null,
+        result: null,
+        filled: [],
+
+        get valid() {
+            return /^(\d{8}|\d{12,14})$/.test(this.barcode);
+        },
+
+        async lookup() {
+            if (!this.valid || this.loading) return;
+
+            this.loading = true;
+            this.error = null;
+            this.result = null;
+
+            try {
+                const response = await fetch(url.replace(/00000000$/, this.barcode), { headers: { Accept: 'application/json' } });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    this.error = data.message ?? 'Import impossible pour le moment.';
+                    return;
+                }
+
+                this.result = data.summary;
+                this.filled = Object.entries(data.fields).filter(([id, value]) => this.fill(id, value)).map(([id]) => id);
+            } catch {
+                this.error = 'Open Food Facts est injoignable pour le moment, réessayez plus tard.';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        // Only empty fields are filled, so an admin never loses what they typed.
+        fill(id, value) {
+            const field = document.getElementById(id);
+            if (!field || field.value.trim() !== '') return false;
+
+            field.value = field.maxLength > 0 ? String(value).slice(0, field.maxLength) : value;
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+
+            return true;
+        },
+    }));
+
     // Toast stack: flash messages from the session + window 'nt-toast' events.
     Alpine.data('ntToasts', (initial = []) => ({
         toasts: [],
