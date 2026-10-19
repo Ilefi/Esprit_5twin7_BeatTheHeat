@@ -29,7 +29,7 @@
 
             @php $bag = 'editCategory'.$category->id; @endphp
             <x-nt.modal :name="'edit-category-'.$category->id" title="Modifier la catégorie" :show="$errors->{$bag}->isNotEmpty()">
-                <form method="POST" action="{{ route('admin.categories.update', $category->id) }}" id="edit-category-form-{{ $category->id }}" class="space-y-5">
+                <form method="POST" action="{{ route('admin.categories.update', $category->id) }}" id="edit-category-form-{{ $category->id }}" class="space-y-5" novalidate>
                     @csrf
                     @method('PUT')
                     <x-nt.form.input name="name" label="Nom" :value="$category->name" :bag="$bag" :use-old="$errors->{$bag}->isNotEmpty()" :id="'category-name-'.$category->id" required />
@@ -46,7 +46,7 @@
     </div>
 
     <x-nt.modal name="create-category" title="Nouvelle catégorie" :show="$errors->createCategory->isNotEmpty()">
-        <form method="POST" action="{{ route('admin.categories.store') }}" id="create-category-form" class="space-y-5">
+        <form method="POST" action="{{ route('admin.categories.store') }}" id="create-category-form" class="space-y-5" novalidate>
             @csrf
             <x-nt.form.input name="name" label="Nom" bag="createCategory" id="new-category-name" required />
             <x-nt.form.select name="icon" label="Icône" :options="$icons" bag="createCategory" id="new-category-icon" placeholder="Choisir une icône" required />
