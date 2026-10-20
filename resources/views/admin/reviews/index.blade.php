@@ -8,6 +8,12 @@
     @include('partials.shared.breadcrumb', ['items' => [['label' => 'Tableau de bord', 'url' => route('admin.dashboard')], ['label' => 'Avis']]])
 @endsection
 
+@section('page_actions')
+    <a href="{{ route('admin.reviews.export_csv') }}" class="nt-btn nt-btn-outline nt-btn-sm">
+        <i class="fa-solid fa-file-csv me-1"></i> Exporter CSV
+    </a>
+@endsection
+
 @section('content')
     {{-- Status tabs with counts --}}
     <nav aria-label="Statut des avis" class="relative -mx-4 mb-6 overflow-x-auto px-4">

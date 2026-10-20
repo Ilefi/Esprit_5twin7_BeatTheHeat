@@ -42,13 +42,17 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         ->except('show')->names('impacts')->parameters(['empreinte' => 'impact'])->whereNumber('impact');
 
     // Module 4 — Signalements & Avis
+    Route::get('avis/export-csv', [Admin\ReviewController::class, 'exportCsv'])->name('reviews.export_csv');
     Route::get('avis', [Admin\ReviewController::class, 'index'])->name('reviews.index');
     Route::post('avis/lot', [Admin\ReviewController::class, 'bulk'])->name('reviews.bulk');
     Route::get('avis/{review}', [Admin\ReviewController::class, 'show'])->name('reviews.show')->whereNumber('review');
+    Route::post('avis/{review}/ai-analyse', [Admin\ReviewController::class, 'aiAnalyze'])->name('reviews.ai.analyze')->whereNumber('review');
     Route::patch('avis/{review}/moderation', [Admin\ReviewController::class, 'moderate'])->name('reviews.moderate')->whereNumber('review');
     Route::delete('avis/{review}', [Admin\ReviewController::class, 'destroy'])->name('reviews.destroy')->whereNumber('review');
 
+    Route::get('signalements/export-csv', [Admin\ReportController::class, 'exportCsv'])->name('reports.export_csv');
     Route::get('signalements', [Admin\ReportController::class, 'index'])->name('reports.index');
+    Route::get('signalements/{ref}/dossier-pdf', [Admin\ReportController::class, 'exportPdf'])->name('reports.export_pdf');
     Route::get('signalements/{ref}', [Admin\ReportController::class, 'show'])->name('reports.show');
     Route::patch('signalements/{ref}', [Admin\ReportController::class, 'update'])->name('reports.update');
     Route::patch('signalements/{ref}/statut', [Admin\ReportController::class, 'status'])->name('reports.status');

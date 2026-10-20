@@ -92,8 +92,8 @@
                     <p class="nt-label">Note</p>
                     <x-nt.rating-stars input name="rating" :value="$review->rating" label="Note" size="md" />
                 </div>
-                <x-nt.form.input name="title" label="Titre" :value="$review->title" :id="'title-'.$review->id" required maxlength="120" />
-                <x-nt.form.textarea name="body" label="Commentaire" :value="$review->body" :id="'body-'.$review->id" required :maxlength="1500" rows="5" />
+                <x-nt.form.input name="title" label="Titre" :value="$review->title" :id="'title-'.$review->id" required minlength="3" maxlength="120" hint="3 caractères minimum." />
+                <x-nt.form.textarea name="body" label="Commentaire" :value="$review->body" :id="'body-'.$review->id" required minlength="20" :maxlength="1500" rows="5" hint="20 caractères minimum." />
             </form>
             <x-slot:footer>
                 <x-nt.button variant="ghost" x-on:click="$dispatch('close-modal')">Annuler</x-nt.button>

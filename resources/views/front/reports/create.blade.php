@@ -116,16 +116,113 @@
                     <legend class="contents"><h2 tabindex="-1" class="text-xl font-semibold focus:outline-none">Décrivez ce que vous avez constaté</h2></legend>
                     <div>
                         <label for="description" class="nt-label">Description <span class="text-danger-strong" aria-hidden="true">*</span></label>
-                        <textarea id="description" name="description" rows="6" maxlength="3000" x-model="description" class="nt-input"
+                        <textarea id="description" name="description" rows="6" maxlength="3000" x-model="description" class="nt-input transition"
+                                  :class="description.length > 0 && description.trim().length < 30 ? '!border-danger !ring-2 !ring-danger/20' : (description.trim().length >= 30 ? '!border-primary' : '')"
                                   placeholder="Où avez-vous vu l'allégation ? En quoi est-elle trompeuse ?"
                                   @error('description') aria-invalid="true" aria-describedby="description-error" @else aria-describedby="description-hint" @enderror></textarea>
-                        <div class="mt-1.5 flex justify-between gap-3 text-xs">
+                        <div class="mt-1.5 flex flex-wrap items-center justify-between gap-3 text-xs">
                             @error('description')
                                 <p id="description-error" class="text-sm text-danger-strong"><i class="fa-solid fa-circle-exclamation me-1" aria-hidden="true"></i>{{ $message }}</p>
                             @else
-                                <p id="description-hint" class="text-muted-foreground">30 caractères minimum.</p>
+                                <div id="description-hint">
+                                    <template x-if="description.length === 0">
+                                        <p class="text-muted-foreground">30 caractères minimum pour permettre une analyse précise.</p>
+                                    </template>
+                                    <template x-if="description.length > 0 && description.trim().length < 30">
+                                        <p class="font-semibold text-danger-strong flex items-center gap-1.5">
+                                            <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                                            Description trop courte : il manque encore <span x-text="30 - description.trim().length"></span> caractère(s) (min. 30).
+                                        </p>
+                                    </template>
+                                    <template x-if="description.trim().length >= 30">
+                                        <p class="font-semibold text-primary flex items-center gap-1.5">
+                                            <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                                            Longueur conforme (min. 30 caractères).
+                                        </p>
+                                    </template>
+                                </div>
                             @enderror
-                            <p class="tabular-nums text-muted-foreground"><span x-text="description.length"></span> / 3000</p>
+                            <p class="tabular-nums" :class="description.length > 0 && description.trim().length < 30 ? 'text-danger-strong font-bold' : 'text-muted-foreground'">
+                                <span x-text="description.length"></span> / 3000
+                            </p>
+                        </div>
+
+                        {{-- AI Feature 4 : Assistant IA Rédaction & Recevabilité --}}
+                        <div x-data="{
+                            loading: false,
+                            result: null,
+                            assist() {
+                                if (!description || description.trim().length < 5) {
+                                    alert('Veuillez saisir au moins quelques mots dans votre description avant de demander l\'aide de l\'IA.');
+                                    return;
+                                }
+                                this.loading = true;
+                                fetch('{{ route('front.reports.ai_assist') }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                    },
+                                    body: JSON.stringify({
+                                        draft: description,
+                                        type: type,
+                                        target_name: targetLabel
+                                    })
+                                })
+                                .then(res => res.json())
+                                .then(data => {
+                                    this.result = data;
+                                    this.loading = false;
+                                })
+                                .catch(() => {
+                                    alert('Erreur lors de l\'analyse IA.');
+                                    this.loading = false;
+                                });
+                            },
+                            applyEnhanced() {
+                                if (this.result && this.result.enhanced_text) {
+                                    description = this.result.enhanced_text;
+                                    this.result = null;
+                                }
+                            }
+                        }" class="mt-3">
+                            <button type="button" x-on:click="assist()" :disabled="loading || description.trim().length < 5"
+                                    class="nt-btn nt-btn-outline nt-btn-sm text-xs border-primary/40 bg-primary/5 hover:bg-primary/10">
+                                <template x-if="!loading">
+                                    <span><i class="fa-solid fa-wand-magic-sparkles text-primary me-1.5"></i> Améliorer & vérifier la recevabilité avec l'IA</span>
+                                </template>
+                                <template x-if="loading">
+                                    <span><i class="fa-solid fa-spinner fa-spin text-primary me-1.5"></i> Reformulation IA en cours...</span>
+                                </template>
+                            </button>
+
+                            <div x-show="result" x-transition class="mt-3 rounded-xl border border-primary/30 bg-surface p-4 text-xs space-y-2.5 shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-bold text-foreground flex items-center gap-1.5">
+                                        <i class="fa-solid fa-scale-balanced text-primary"></i>
+                                        Indice de recevabilité juridique estimé :
+                                    </span>
+                                    <span class="nt-badge bg-primary text-primary-foreground font-bold">
+                                        <span x-text="result?.admissibility_score + '%'"></span> · <span x-text="result?.quality_label"></span>
+                                    </span>
+                                </div>
+
+                                <div class="rounded-lg bg-muted/40 p-3 border">
+                                    <p class="font-semibold text-slate-800 mb-1">📝 Version reformulée suggérée par l'IA :</p>
+                                    <p class="text-muted-foreground whitespace-pre-line leading-relaxed" x-text="result?.enhanced_text"></p>
+                                </div>
+
+                                <p class="text-slate-600 italic" x-show="result?.missing_tips">
+                                    💡 <strong>Conseil IA :</strong> <span x-text="result?.missing_tips"></span>
+                                </p>
+
+                                <div class="flex items-center justify-end gap-2 pt-1">
+                                    <button type="button" x-on:click="result = null" class="nt-btn nt-btn-ghost nt-btn-sm text-xs">Fermer</button>
+                                    <button type="button" x-on:click="applyEnhanced()" class="nt-btn nt-btn-primary nt-btn-sm text-xs">
+                                        <i class="fa-solid fa-check me-1"></i> Remplacer par cette version professionnelle
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <x-nt.form.file name="evidence[]" label="Pièces jointes (photos, documents)" multiple hint="Jusqu'à 5 fichiers PDF, JPG ou PNG — 5 Mo maximum chacun." />
@@ -170,8 +267,16 @@
             <div class="flex items-center justify-between gap-3 border-t bg-muted/40 px-5 py-4 sm:px-8">
                 <x-nt.button variant="ghost" icon="fa-arrow-left" x-show="step > 1" x-on:click="prev()">Précédent</x-nt.button>
                 <span x-show="step === 1"></span>
-                <x-nt.button icon-right="fa-arrow-right" x-show="step < total" x-on:click="next()" ::disabled="! canContinue()">Continuer</x-nt.button>
-                <x-nt.button type="submit" variant="danger" icon="fa-paper-plane" x-show="step === total" x-cloak ::disabled="! consent">Envoyer le signalement</x-nt.button>
+
+                <div class="flex items-center gap-3">
+                    <template x-if="step === 3 && description.length > 0 && description.trim().length < 30">
+                        <span class="text-xs font-semibold text-danger-strong hidden sm:inline-flex items-center gap-1">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Min. 30 caractères requis
+                        </span>
+                    </template>
+                    <x-nt.button icon-right="fa-arrow-right" x-show="step < total" x-on:click="next()" ::disabled="! canContinue()">Continuer</x-nt.button>
+                    <x-nt.button type="submit" variant="danger" icon="fa-paper-plane" x-show="step === total" x-cloak ::disabled="! consent">Envoyer le signalement</x-nt.button>
+                </div>
             </div>
         </form>
 

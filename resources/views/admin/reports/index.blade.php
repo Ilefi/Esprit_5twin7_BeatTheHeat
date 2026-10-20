@@ -9,6 +9,9 @@
 @endsection
 
 @section('page_actions')
+    <a href="{{ route('admin.reports.export_csv', request()->query()) }}" class="nt-btn nt-btn-outline nt-btn-sm">
+        <i class="fa-solid fa-file-csv me-1"></i> Exporter CSV
+    </a>
     <div class="inline-flex rounded-lg border bg-surface p-1" role="group" aria-label="Mode d'affichage">
         <a href="{{ route('admin.reports.index', request()->except(['vue', 'page'])) }}" @class(['nt-btn nt-btn-sm', 'nt-btn-primary' => $view === 'table', 'nt-btn-ghost' => $view !== 'table']) @if ($view === 'table') aria-current="true" @endif>
             <i class="fa-solid fa-table-list" aria-hidden="true"></i> Tableau
