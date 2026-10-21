@@ -21,8 +21,6 @@ jobs:
   style:
     name: Style (Pint)
     runs-on: ubuntu-latest
-    # Reported, not blocking: the team agreed not to reformat every module at once.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v5
       - uses: shivammathur/setup-php@v2
@@ -30,7 +28,13 @@ jobs:
           php-version: ${{ env.PHP_VERSION }}
           coverage: none
       - uses: ramsey/composer-install@v3
-      - run: vendor/bin/pint --test
+      # Reported, not blocking: style issues become a warning on the run, the job stays green.
+      # (A job-level continue-on-error would still show a red check on pull requests.)
+      - name: Check code style (report only)
+        run: |
+          if ! vendor/bin/pint --test; then
+            echo "::warning title=Code style::Pint found style issues (listed above). Run vendor/bin/pint locally to fix them."
+          fi
 
   tests:
     name: Tests (PHPUnit + Blade + Vite)
