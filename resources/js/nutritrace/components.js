@@ -2,6 +2,44 @@ import { prefersReducedMotion } from './tokens';
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+// Sets a form field like a user would (respecting maxlength), so Alpine bindings and counters update.
+function setField(field, value) {
+    field.value = field.maxLength > 0 ? String(value).slice(0, field.maxLength) : value;
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+// Only empty fields are filled, so an admin never loses what they typed.
+function fillEmpty(field, value) {
+    if (!field || !value || field.value.trim() !== '') return false;
+
+    setField(field, value);
+
+    return true;
+}
+
+// POSTs a form as JSON-accepting request (without its file and method-spoofing fields) and returns the JSON, or throws a French message.
+async function postForm(url, form, extra = {}) {
+    const body = new FormData(form);
+    ['_method', 'image'].forEach((key) => body.delete(key));
+    Object.entries(extra).forEach(([key, value]) => body.set(key, value));
+
+    let response;
+    let data;
+    try {
+        response = await fetch(url, { method: 'POST', body, headers: { Accept: 'application/json' } });
+        data = await response.json();
+    } catch {
+        throw new Error('Le serveur ne répond pas, réessayez dans un instant.');
+    }
+
+    if (!response.ok) {
+        throw new Error(Object.values(data.errors ?? {})[0]?.[0] ?? data.message ?? 'Requête impossible pour le moment.');
+    }
+
+    return data;
+}
+
 export default function registerComponents(Alpine) {
     // Modal with focus trap. Open with $dispatch('open-modal', 'name'), close with Esc, backdrop or $dispatch('close-modal').
     Alpine.data('ntModal', (name, show = false) => ({
@@ -195,24 +233,96 @@ export default function registerComponents(Alpine) {
                 }
 
                 this.result = data.summary;
-                this.filled = Object.entries(data.fields).filter(([id, value]) => this.fill(id, value)).map(([id]) => id);
+                this.filled = Object.entries(data.fields).filter(([id, value]) => fillEmpty(document.getElementById(id), value)).map(([id]) => id);
             } catch {
                 this.error = 'Open Food Facts est injoignable pour le moment, réessayez plus tard.';
             } finally {
                 this.loading = false;
             }
         },
+    }));
 
-        // Only empty fields are filled, so an admin never loses what they typed.
-        fill(id, value) {
-            const field = document.getElementById(id);
-            if (!field || field.value.trim() !== '') return false;
+    // AI draft of the product description and composition (Gemini, App\Services\CatalogAssistant), from the fields of the surrounding form.
+    Alpine.data('ntAiProductWriter', (url) => ({
+        loading: false,
+        error: null,
+        result: null,
+        filled: [],
 
-            field.value = field.maxLength > 0 ? String(value).slice(0, field.maxLength) : value;
-            field.dispatchEvent(new Event('input', { bubbles: true }));
-            field.dispatchEvent(new Event('change', { bubbles: true }));
+        async generate() {
+            if (this.loading) return;
 
-            return true;
+            this.loading = true;
+            this.error = null;
+            this.result = null;
+
+            try {
+                this.result = await postForm(url, this.$root.closest('form'));
+                this.filled = this.fields().filter(([, field]) => fillEmpty(field, this.result[field.name])).map(([label]) => label);
+            } catch (error) {
+                this.error = error.message;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        // The admin explicitly replaces what they typed with the AI draft.
+        applyAll() {
+            this.filled = this.fields().filter(([, field]) => this.result[field.name]).map(([label, field]) => {
+                setField(field, this.result[field.name]);
+
+                return label;
+            });
+        },
+
+        fields() {
+            const form = this.$root.closest('form');
+
+            return [['description', form.elements.description], ['composition', form.elements.composition]].filter(([, field]) => field);
+        },
+    }));
+
+    // AI settings of a category (icon, Open Food Facts tag, substitutes) for the create / edit modal form with id formId.
+    Alpine.data('ntAiCategoryAssistant', (url, formId, categoryId = null) => ({
+        loading: false,
+        error: null,
+        result: null,
+        applied: false,
+
+        async generate() {
+            if (this.loading) return;
+
+            this.loading = true;
+            this.error = null;
+            this.result = null;
+
+            try {
+                this.result = await postForm(url, this.form(), categoryId ? { category_id: categoryId } : {});
+                this.apply(false);
+            } catch (error) {
+                this.error = error.message;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        // Empty fields only, unless the admin asks to overwrite; suggested substitutes are ticked, existing ones are kept.
+        apply(overwrite = true) {
+            const { icon, off_tag: offTag } = this.form().elements;
+            const fill = overwrite ? setField : fillEmpty;
+
+            if (this.result.icon && icon) fill(icon, this.result.icon);
+            if (this.result.off_tag && offTag) fill(offTag, this.result.off_tag);
+            this.result.substitutes.forEach(({ id }) => {
+                const box = this.form().querySelector(`input[name="substitutes[]"][value="${id}"]`);
+                if (box) box.checked = true;
+            });
+
+            this.applied = overwrite;
+        },
+
+        form() {
+            return document.getElementById(formId);
         },
     }));
 

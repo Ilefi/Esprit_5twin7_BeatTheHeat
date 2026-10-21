@@ -1,0 +1,176 @@
+# NutriTrace CI/CD pipeline.
+# CI (every push and pull request): code style, tests, MySQL migrations, Docker image build + smoke test.
+# CD (push on main only): image published to ghcr.io, then deployed from the registry and smoke-tested.
+# Actions are pinned to full commit SHAs (version in the comment): a tag can be moved, a commit cannot.
+name: CI/CD
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PHP_VERSION: '8.4'
+  NODE_VERSION: '24'
+
+jobs:
+  style:
+    name: Style (Pint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+      - uses: ramsey/composer-install@a8d0d959dab41457692a5e2041bd9b757a119e3f # 3.2.1
+      # Reported, not blocking: style issues become a warning on the run, the job stays green.
+      # (A job-level continue-on-error would still show a red check on pull requests.)
+      - name: Check code style (report only)
+        run: |
+          if ! vendor/bin/pint --test; then
+            echo "::warning title=Code style::Pint found style issues (listed above). Run vendor/bin/pint locally to fix them."
+          fi
+
+  tests:
+    name: Tests (PHPUnit + Blade + Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+      - uses: ramsey/composer-install@a8d0d959dab41457692a5e2041bd9b757a119e3f # 3.2.1
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Build front-end assets
+        run: npm ci --ignore-scripts && npm run build
+      - name: Prepare environment
+        run: cp .env.example .env && php artisan key:generate
+      - name: Run the test suite
+        run: php artisan test
+      - name: Compile every Blade view
+        run: php artisan view:cache
+
+  mysql:
+    name: Migrations + seeders on MySQL 8.0
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: laravel
+          MYSQL_ROOT_PASSWORD: secret
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -psecret --silent"
+          --health-interval=5s --health-timeout=3s --health-retries=30
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: laravel
+      DB_USERNAME: root
+      DB_PASSWORD: secret
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: pdo_mysql
+          coverage: none
+      - uses: ramsey/composer-install@a8d0d959dab41457692a5e2041bd9b757a119e3f # 3.2.1
+      - name: Prepare environment
+        run: cp .env.example .env && php artisan key:generate
+      - name: Migrate and seed the demo dataset
+        run: php artisan migrate:fresh --seed --force
+      - name: Roll every migration back
+        run: php artisan migrate:reset --force
+
+  image:
+    name: Docker image (build, smoke test, publish)
+    needs: [tests, mysql]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUBLISH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=ref,event=pr
+      - name: Build the image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Start app + MySQL from the built image
+        run: |
+          echo "APP_KEY=base64:$(openssl rand -base64 32)" > .env
+          echo "NUTRITRACE_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA::7}" >> .env
+          docker compose -f compose.deploy.yaml up -d --no-build --wait
+      - name: Smoke test
+        run: docker/smoke-test.sh http://localhost:8080
+      - name: Container logs on failure
+        if: failure()
+        run: docker compose -f compose.deploy.yaml logs app
+      - name: Log in to GitHub Container Registry
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish to ghcr.io
+        if: env.PUBLISH == 'true'
+        run: docker push --all-tags "ghcr.io/${GITHUB_REPOSITORY,,}"
+
+  deploy:
+    name: Deploy from the registry (staging)
+    needs: image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Pull and start the published image
+        run: |
+          echo "APP_KEY=base64:$(openssl rand -base64 32)" > .env
+          echo "NUTRITRACE_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA::7}" >> .env
+          docker compose -f compose.deploy.yaml pull app
+          docker compose -f compose.deploy.yaml up -d --no-build --wait
+      - name: Smoke test
+        run: docker/smoke-test.sh http://localhost:8080
+      - name: Container logs on failure
+        if: failure()
+        run: docker compose -f compose.deploy.yaml logs app

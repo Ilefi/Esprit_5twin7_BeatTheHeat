@@ -14,10 +14,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Module 1 — Produits & Certifications
     Route::get('produits/open-food-facts/{barcode}', [Admin\ProductController::class, 'lookup'])->name('products.lookup')->where('barcode', '[0-9]{8,14}');
+    Route::post('produits/ia/fiche', [Admin\ProductController::class, 'generate'])->name('products.ai');
     Route::resource('produits', Admin\ProductController::class)
         ->names('products')->parameters(['produits' => 'product'])->whereNumber('product');
 
     Route::get('categories', [Admin\CategoryController::class, 'index'])->name('categories.index');
+    Route::post('categories/ia/suggestions', [Admin\CategoryController::class, 'suggest'])->name('categories.ai');
     Route::post('categories', [Admin\CategoryController::class, 'store'])->name('categories.store');
     Route::put('categories/{category}', [Admin\CategoryController::class, 'update'])->name('categories.update')->whereNumber('category');
     Route::delete('categories/{category}', [Admin\CategoryController::class, 'destroy'])->name('categories.destroy')->whereNumber('category');
