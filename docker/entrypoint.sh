@@ -1,5 +1,5 @@
 #!/bin/sh
-# Prepares the container on every start: database schema, demo data (first start only), caches, then Apache.
+# Prepares the container on every start (as www-data): database schema, demo data (first start only), caches, then Apache.
 set -e
 
 php artisan migrate --force
@@ -10,10 +10,6 @@ if [ "${SEED_DEMO_DATA:-true}" = "true" ] && [ ! -f storage/app/.seeded ]; then
     touch storage/app/.seeded
 fi
 
-php artisan storage:link --force
 php artisan optimize
-
-# Artisan ran as root: give the files it created back to Apache.
-chown -R www-data:www-data storage bootstrap/cache
 
 exec "$@"
