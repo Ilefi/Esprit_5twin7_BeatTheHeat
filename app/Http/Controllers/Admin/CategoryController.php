@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Impact;
+use App\Services\CatalogAssistant;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -77,6 +79,27 @@ class CategoryController extends Controller
         $category->delete();
 
         return redirect()->route('admin.categories.index')->with('success', "La catégorie « {$category->name} » a été supprimée.");
+    }
+
+    /**
+     * Suggests the icon, Open Food Facts tag and substitutes of a category with Gemini (JSON for the ntAiCategoryAssistant Alpine component).
+     */
+    public function suggest(Request $request, CatalogAssistant $assistant): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')],
+        ], ['name.required' => 'Saisissez d\'abord le nom de la catégorie.']);
+
+        if (! $assistant->configured()) {
+            return response()->json(['message' => CatalogAssistant::NOT_CONFIGURED], 503);
+        }
+
+        $settings = $assistant->categorySettings($data['name'], Category::find($data['category_id'] ?? null));
+
+        return $settings
+            ? response()->json($settings)
+            : response()->json(['message' => CatalogAssistant::UNAVAILABLE], 502);
     }
 
     private function rules(?Category $category = null): array

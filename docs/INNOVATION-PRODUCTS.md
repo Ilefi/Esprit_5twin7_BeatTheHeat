@@ -91,9 +91,31 @@ npm run build                      # or npm run dev
 ```
 
 1. **Alternatives**: open `/produits/amandes-sfax` (eco-score D). The block suggests fruits and honey from the substitute categories.
-2. **Category benchmark**: open `/produits/miel-thym-zaghouan`, then the *Nutrition & repères* tab. It shows the NutriTrace ranking and the world Green-Score / Nutri-Score distributions for `en:honeys`.
+2. **Category benchmark**: open `/produits/huile-olive-sfax` (NutriTrace ranking, 2nd of 3) and `/produits/miel-thym-zaghouan` (world Green-Score / Nutri-Score distributions for `en:honeys`), *Nutrition & repères* tab. The ranking needs at least 2 rated products in the category.
 3. **Barcode import**: on `/admin/produits/create`, type `3017620422003` and click **Importer**. The fields fill in from Open Food Facts.
 4. **Nutrition tab**: edit a product, set a real barcode, save, and open its public page.
 5. **Categories**: on `/admin/categories`, edit a category to change its OFF tag or its substitutes. The alternatives on the product pages change with it.
 
 Tests: `php artisan test --filter=ProductRecommendationTest`. Open Food Facts is faked with `Http::fake()`, including the "API down" case.
+
+Click-by-click demo of every feature, AI included: `docs/DEMO-PRODUCTS.md`.
+
+## 8. AI writing help (Gemini)
+
+`app/Services/Gemini.php` (generic client) and `app/Services/CatalogAssistant.php` (prompts + checks). Config: `config/services.php` → `gemini` (`GEMINI_API_KEY`, free on aistudio.google.com; `GEMINI_MODEL`, default `gemini-3.8-flash`).
+
+| | Product form (`/admin/produits/create`, edit) | Category modals (`/admin/categories`) |
+|---|---|---|
+| Button | **Rédiger avec l'IA** (`ntAiProductWriter`) | **Suggérer avec l'IA** (`ntAiCategoryAssistant`) |
+| Route | `POST /admin/produits/ia/fiche` (`admin.products.ai`) | `POST /admin/categories/ia/suggestions` (`admin.categories.ai`) |
+| Gemini gets | name, category, region, format, composition, valid certifications, Open Food Facts data of the barcode | the name, the current products of the category, the other categories with example products |
+| Gemini returns | description, composition | icon, Open Food Facts tag, up to 3 substitutes with a reason, a summary |
+
+Design choices:
+- **Structured output.** Gemini must answer JSON matching a schema (`responseMimeType` + `responseSchema`), so nothing is parsed out of free text.
+- **The server checks everything.** The icon must be in `CategoryController::ICONS`, the tag must match `en:xxx` and is **checked on Open Food Facts** (number of products shown, or "à vérifier"), substitutes must be existing categories (never the category itself), texts are trimmed to the column limits.
+- **Anti-greenwashing.** The prompt forbids invented labels and unproven claims; if the text still contains one (`CatalogAssistant::UNVERIFIED_CLAIMS`: "zéro impact", "écologique"…), the admin sees a warning.
+- **The admin decides.** Like the barcode import, only empty fields are filled; a button replaces the admin's text on request. Nothing is saved until the form is submitted.
+- **Never breaks the form.** No key → 503 with the setup message; Gemini error or timeout → 502 "réessayez" (details logged as a warning, see `php artisan pail`).
+
+Tests: `php artisan test --filter=CatalogAssistantTest` (Gemini faked).

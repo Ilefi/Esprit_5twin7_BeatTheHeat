@@ -8,6 +8,7 @@ use App\Models\Actor;
 use App\Models\Category;
 use App\Models\Certification;
 use App\Models\Product;
+use App\Services\CatalogAssistant;
 use App\Services\OpenFoodFacts;
 use App\View\Components\StatusBadge;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -149,6 +151,37 @@ class ProductController extends Controller
                 'url' => $data['url'],
             ],
         ]);
+    }
+
+    /**
+     * Drafts the description and composition with Gemini from what the admin typed (JSON for the ntAiProductWriter Alpine component).
+     */
+    public function generate(Request $request, CatalogAssistant $assistant): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'min:3', 'max:150'],
+            'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')],
+            'region' => ['nullable', 'string', 'max:80'],
+            'format' => ['nullable', 'string', 'max:80'],
+            'composition' => ['nullable', 'string', 'max:1000'],
+            'barcode' => ['nullable', 'regex:/^(\d{8}|\d{12,14})$/'],
+            'certifications' => ['nullable', 'array'],
+            'certifications.*' => ['integer'],
+        ], ['name.required' => 'Saisissez au moins le nom du produit : l\'IA rédige la fiche à partir de lui.']);
+
+        if (! $assistant->configured()) {
+            return response()->json(['message' => CatalogAssistant::NOT_CONFIGURED], 503);
+        }
+
+        $sheet = $assistant->productSheet(
+            $data,
+            Category::find($data['category_id'] ?? null),
+            Certification::whereIn('id', $data['certifications'] ?? [])->orderBy('id')->get()->reject->is_expired,
+        );
+
+        return $sheet
+            ? response()->json($sheet)
+            : response()->json(['message' => CatalogAssistant::UNAVAILABLE], 502);
     }
 
     private function formData(): array
