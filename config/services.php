@@ -28,6 +28,14 @@ return [
         'key' => env('RESEND_KEY'),
     ],
 
+    // Public API, no key needed: https://openfoodfacts.github.io/openfoodfacts-server/api/
+    'openfoodfacts' => [
+        'url' => env('OPENFOODFACTS_URL', 'https://world.openfoodfacts.org'),
+        'search_url' => env('OPENFOODFACTS_SEARCH_URL', 'https://search.openfoodfacts.org'),
+        'user_agent' => env('OPENFOODFACTS_USER_AGENT', 'NutriTrace/1.0 (Esprit academic project)'),
+        'timeout' => (int) env('OPENFOODFACTS_TIMEOUT', 5),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

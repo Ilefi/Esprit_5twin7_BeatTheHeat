@@ -8,6 +8,7 @@
         'packaging' => old('packaging', $impact?->packaging ?? 'recyclable'),
         'seasonal' => (bool) old('seasonal', $impact?->seasonal ?? true),
     ];
+    $breakdown = array_map('intval', old('breakdown', $impact?->breakdown ?? array_combine(\App\Support\EcoScore::BREAKDOWN_STAGES, [60, 15, 15, 10])));
 @endphp
 
 <form method="POST" action="{{ $product ? route('admin.impacts.update', $product->id) : route('admin.impacts.store') }}"
@@ -20,7 +21,15 @@
     <x-nt.card>
         <x-slot:header><h2 class="text-base font-semibold">Indicateurs mesurés</h2></x-slot:header>
         <div class="grid gap-5 sm:grid-cols-2">
-            <x-nt.form.select name="product_id" label="Produit" :options="$products" :value="$product?->id" placeholder="Choisir…" required class="sm:col-span-2" />
+            @if ($product)
+                <div class="sm:col-span-2">
+                    <p class="nt-label">Produit</p>
+                    <p class="font-semibold">{{ $product->name }}</p>
+                </div>
+            @else
+                <x-nt.form.select name="product_id" label="Produit" :options="$products" :value="request('produit')" placeholder="Choisir…" required class="sm:col-span-2"
+                                  :hint="$products ? 'Seuls les produits sans empreinte sont proposés.' : 'Tous les produits ont déjà une empreinte.'" />
+            @endif
             <x-nt.form.input name="co2_per_kg" type="number" step="0.1" min="0" label="Émissions (kg CO₂e / kg)" :value="$initial['co2']" x-model.number="co2" required icon="fa-smog" />
             <x-nt.form.input name="water_per_kg" type="number" step="10" min="0" label="Eau (L / kg)" :value="$initial['water']" x-model.number="water" required icon="fa-droplet" />
             <x-nt.form.input name="distance_km" type="number" step="5" min="0" label="Distance parcourue (km)" :value="$initial['distance']" x-model.number="distance" required icon="fa-route" />
@@ -29,7 +38,29 @@
                 <input type="hidden" name="seasonal" value="0">
                 <x-nt.form.checkbox name="seasonal" label="Produit de saison" description="Récolté et vendu en pleine saison, sans stockage prolongé." :checked="$initial['seasonal']" x-model="seasonal" />
             </div>
+            <x-nt.form.select name="methodology" label="Méthodologie" :options="$methodologies" :value="$impact?->methodology" placeholder="Choisir…" required />
+            <x-nt.form.input name="source" label="Source des données" :value="$impact?->source" maxlength="255" placeholder="Rapport ACV 2026, bilan carbone…" />
         </div>
+
+        <fieldset class="mt-6 border-t pt-5" x-data="{ parts: @js($breakdown) }">
+            <legend class="sr-only">Répartition des émissions</legend>
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+                <p class="text-sm font-semibold">Répartition des émissions (%)</p>
+                <span class="nt-badge" :class="Object.values(parts).reduce((sum, part) => sum + (Number(part) || 0), 0) === 100 ? 'nt-badge-success' : 'nt-badge-danger'">
+                    Total : <span x-text="Object.values(parts).reduce((sum, part) => sum + (Number(part) || 0), 0)"></span> %
+                </span>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-4">
+                @foreach ($breakdown as $stage => $share)
+                    <x-nt.form.input :name="'breakdown['.$stage.']'" type="number" min="0" max="100" step="1" :label="$stage" :value="$share" x-model.number="parts.{{ $stage }}" required />
+                @endforeach
+            </div>
+            @error('breakdown')
+                <p class="mt-2 flex items-center gap-1.5 text-sm text-danger-strong">
+                    <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>{{ $message }}
+                </p>
+            @enderror
+        </fieldset>
         <x-slot:footer>
             <x-nt.button :href="route('admin.impacts.index')" variant="ghost">Annuler</x-nt.button>
             <x-nt.button type="submit" icon="fa-check">{{ $product ? 'Enregistrer' : 'Créer l\'empreinte' }}</x-nt.button>

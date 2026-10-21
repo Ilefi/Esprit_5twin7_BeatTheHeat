@@ -14,6 +14,8 @@
 @php
     $stageIcons = ['production' => 'fa-tractor', 'processing' => 'fa-industry', 'distribution' => 'fa-truck', 'consumer' => 'fa-utensils'];
     $stageLabels = \App\Http\Controllers\Admin\BatchController::STAGES;
+    $stage = (string) request('etape');
+    $steps = $batch->steps->when(array_key_exists($stage, $stageLabels), fn ($c) => $c->where('stage', $stage)->values());
     // Route diagram: x position proportional to cumulative distance.
     $cumulative = 0;
     // Steps at the same place (0 km between them) share one point, labelled with the last one.
@@ -60,11 +62,19 @@
 
     <section class="nt-container py-10" aria-labelledby="journey-title">
         <h2 id="journey-title" class="mb-6 text-2xl font-bold">Le parcours du lot</h2>
-
+        <div class="no-print mb-6 flex flex-wrap gap-2">
+            <a href="{{ route('front.traceability.batch', $batch->code) }}" class="nt-btn nt-btn-sm {{ array_key_exists($stage, $stageLabels) ? 'nt-btn-outline' : 'nt-btn-primary' }}">Tous</a>
+            @foreach ($stageLabels as $key => $label)
+                <a href="{{ route('front.traceability.batch', ['code' => $batch->code, 'etape' => $key]) }}" class="nt-btn nt-btn-sm {{ $stage === $key ? 'nt-btn-primary' : 'nt-btn-outline' }}">{{ $label }}</a>
+            @endforeach
+        </div>
+        @if ($steps->isEmpty())
+            <p class="text-sm text-muted-foreground">Aucune étape pour ce filtre.</p>
+        @endif
         {{-- Desktop: horizontal stepper --}}
-        <ol class="relative hidden gap-4 lg:grid" style="grid-template-columns: repeat({{ $batch->steps->count() }}, minmax(0, 1fr))">
+        <ol class="relative hidden gap-4 lg:grid" style="grid-template-columns: repeat({{ max(1, $steps->count()) }}, minmax(0, 1fr))">
             <span class="absolute left-[8%] right-[8%] top-7 h-0.5 border-t-2 border-dashed border-primary/40" aria-hidden="true"></span>
-            @foreach ($batch->steps as $step)
+            @foreach ($steps as $step)
                 <li class="relative flex flex-col">
                     <span @class([
                         'relative z-10 mx-auto grid h-14 w-14 place-items-center rounded-full text-lg shadow-md ring-8 ring-background',
@@ -84,7 +94,7 @@
 
         {{-- Mobile: vertical timeline --}}
         <x-nt.timeline class="lg:hidden">
-            @foreach ($batch->steps as $step)
+            @foreach ($steps as $step)
                 <x-nt.timeline-item :icon="$stageIcons[$step->stage]" :title="$step->title" :time="$stageLabels[$step->stage]" :tone="$step->verified ? 'primary' : 'muted'">
                     @include('front.traceability._step-details', ['step' => $step])
                 </x-nt.timeline-item>

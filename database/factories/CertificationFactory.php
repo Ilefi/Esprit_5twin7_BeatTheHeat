@@ -23,6 +23,7 @@ class CertificationFactory extends Factory
             'short_name' => Str::limit(CertificationController::TYPES[$type], 25, ''),
             'type' => $type,
             'issuer' => 'Organisme '.fake()->lastName().' (exemple)',
+            'expires_at' => fake()->dateTimeBetween('+6 months', '+3 years')->format('Y-m-d'),
             'description' => 'Label attestant le respect d\'un cahier des charges contrôlé chaque année par un organisme tiers.',
             'criteria' => ['Cahier des charges publié', 'Contrôle annuel sur site', 'Traçabilité documentaire'],
             'guarantees' => ['Pratiques contrôlées par un tiers'],

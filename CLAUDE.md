@@ -20,12 +20,13 @@ NutriTrace (repo: Esprit_5twin7_BeatTheHeat) — a "farm to fork" food traceabil
 
 ## Setup
 
-Database is **MySQL** (XAMPP defaults in `.env.example`: `127.0.0.1:3306`, database `laravel`, user `root`, empty password — each teammate adjusts their own gitignored `.env`):
+Database is **MySQL** (XAMPP defaults in `.env.example`: `127.0.0.1:3306`, database `laravel`, user `root`, empty password — each teammate adjusts their own gitignored `.env`). Without XAMPP, `docker compose up -d` starts MySQL 8.0 from `compose.yaml`, reading `DB_PORT`/`DB_DATABASE`/`DB_PASSWORD` from `.env` (set `DB_PORT=3307` if a local MySQL already holds 3306):
 
 ```
 composer install && npm install
 cp .env.example .env && php artisan key:generate
 php artisan migrate --seed   # admin@ / actor@ / consumer@nutritrace.tn, password "password"
+php artisan storage:link     # serves uploads (product images, report evidence) from the public disk
 npm run build                # or keep `npm run dev` running — views load assets only through @vite
 ```
 
@@ -50,6 +51,7 @@ Tests use in-memory SQLite (`phpunit.xml`), so `RefreshDatabase` never touches t
 - **Routes:** `routes/front.php` (public + `/mon-espace`), `routes/admin.php` (`/admin`, middleware `['auth', 'admin']`), `routes/auth.php` (Breeze), `routes/web.php` requires them and keeps `dashboard` (redirects by role) and Breeze `profile.*` (still at `/profile`).
 - **Roles:** `users.role` (`admin|actor|consumer`), `User::isAdmin()`, `admin` middleware alias → `App\Http\Middleware\EnsureUserIsAdmin` (in `bootstrap/app.php`).
 - **Models & data:** seeders look records up by slug / e-mail / code (never by id) and keep the curated slugs, lot codes and report refs stable — `TemplatePagesTest` and the docs rely on them (`huile-olive-sfax`, `NT-2026-OLV-0412`, `SIG-2026-0004` owned by `consumer@`). View-facing computed attributes are model accessors (`Product::eco_score|batch_code|rating_avg|reviews_count`, `Batch::total_km|actors_count`, `Review::reply`, `Report::target|open_days`); eager-load with the provided scopes (`Product::forCards()`, `withRating()`, `orderByEcoPoints()`, `Actor::withStats()`, `Report::withTarget()`). Reports target products, actors or certifications through a `reportable` morph (`Relation::morphMap` in `AppServiceProvider`). `Impact` derives `eco_points`/`eco_score` on save; `Report` generates its `ref` on create.
+- **Open Food Facts** (`App\Services\OpenFoodFacts`, config `services.openfoodfacts`, no key) feeds the product nutrition tab, the category world benchmark (`categories.off_tag`) and the admin barcode import; `App\Services\ProductRecommender` builds "Meilleures alternatives" from the category and its symmetric `Category::substitutes`. See `docs/INNOVATION-PRODUCTS.md`. `Tests\TestCase` calls `Http::preventStrayRequests()`: fake every external call with `Http::fake()`.
 - **Eco-score:** `App\Support\EcoScore` (server, also used by `Impact`) and `ntEcoPreview` in `resources/js/nutritrace/components.js` (live admin preview) implement the same formula — change both together.
 - **JS:** `resources/js/nutritrace/*` registers Alpine components (`ntModal`, `ntCounter`, `ntRatingInput`, `ntFileDrop`, `ntReportWizard`, `ntChart`, `ntQr`…). Charts read colors from CSS variables via `tokens.js`. Alpine attribute expressions can't start with statements (`try`, `if`): put that logic in an `init()` method.
 - Absolutely positioned children (e.g. `sr-only` labels) escape `overflow-x-auto` containers unless the container is `relative` — keep scroll containers `relative`.

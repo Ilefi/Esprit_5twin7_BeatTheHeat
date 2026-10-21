@@ -13,6 +13,11 @@
                 <div class="text-sm">
                     <p class="font-semibold">{{ $certification->products_count }} produits · {{ $certification->actors_count }} acteurs</p>
                     <p class="text-muted-foreground">{{ $certification->issuer }}</p>
+                    @if ($certification->expires_at)
+                        <p @class(['text-danger-strong font-medium' => $certification->is_expired, 'text-muted-foreground' => ! $certification->is_expired])>
+                            {{ $certification->is_expired ? 'Expiré depuis le' : 'Valide jusqu\'au' }} {{ $certification->expires_at->translatedFormat('d F Y') }}
+                        </p>
+                    @endif
                 </div>
             </div>
         </x-slot:aside>

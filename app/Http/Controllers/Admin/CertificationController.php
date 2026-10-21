@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\CertificationRequest;
 use App\Models\Certification;
 use App\Models\CertificationVerification;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class CertificationController extends Controller
@@ -33,11 +33,11 @@ class CertificationController extends Controller
         return view('admin.certifications.create', ['types' => self::TYPES]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(CertificationRequest $request): RedirectResponse
     {
-        $data = $this->validated($request);
+        $certification = Certification::create($request->certificationData());
 
-        return redirect()->route('admin.certifications.index')->with('success', "La certification « {$data['name']} » a été créée.");
+        return redirect()->route('admin.certifications.index')->with('success', "La certification « {$certification->name} » a été créée.");
     }
 
     public function edit(int $certification): View
@@ -48,30 +48,26 @@ class CertificationController extends Controller
         ]);
     }
 
-    public function update(Request $request, int $certification): RedirectResponse
+    public function update(CertificationRequest $request, int $certification): RedirectResponse
     {
-        Certification::findOrFail($certification);
-        $data = $this->validated($request);
+        $certification = Certification::findOrFail($certification);
+        $certification->update($request->certificationData());
 
-        return redirect()->route('admin.certifications.index')->with('success', "La certification « {$data['name']} » a été mise à jour.");
+        return redirect()->route('admin.certifications.index')->with('success', "La certification « {$certification->name} » a été mise à jour.");
     }
 
     public function destroy(int $certification): RedirectResponse
     {
-        $certification = Certification::findOrFail($certification);
+        $certification = Certification::withCount('reports')->findOrFail($certification);
+
+        // Citizen reports keep pointing at their target, so a reported certification cannot be deleted.
+        if ($certification->reports_count) {
+            return back()->with('error', "La certification « {$certification->name} » fait l'objet de signalements et ne peut pas être supprimée.");
+        }
+
+        // Product and actor links and pending verifications are removed by the cascading foreign keys.
+        $certification->delete();
 
         return redirect()->route('admin.certifications.index')->with('success', "La certification « {$certification->name} » a été supprimée.");
-    }
-
-    private function validated(Request $request): array
-    {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'short_name' => ['required', 'string', 'max:30'],
-            'type' => ['required', 'in:'.implode(',', array_keys(self::TYPES))],
-            'issuer' => ['required', 'string', 'max:150'],
-            'description' => ['required', 'string', 'min:20', 'max:1500'],
-            'criteria' => ['nullable', 'string', 'max:2000'],
-        ], [], ['short_name' => 'nom court']);
     }
 }

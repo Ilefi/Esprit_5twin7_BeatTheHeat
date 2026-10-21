@@ -3,14 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ProductRequest;
 use App\Models\Actor;
 use App\Models\Category;
 use App\Models\Certification;
 use App\Models\Product;
+use App\Services\OpenFoodFacts;
 use App\View\Components\StatusBadge;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -42,12 +47,19 @@ class ProductController extends Controller
         return view('admin.products.create', $this->formData());
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(ProductRequest $request): RedirectResponse
     {
-        $data = $this->validated($request);
+        $data = $request->safe()->except(['certifications', 'image']);
+        $data['image'] = $request->file('image')->store('products', 'public');
 
-        // TODO(Gestion 1): Product::create($data) + sync certifications
-        return redirect()->route('admin.products.index')->with('success', "Le produit « {$data['name']} » a été créé.");
+        $product = DB::transaction(function () use ($data, $request) {
+            $product = Product::create($data);
+            $product->certifications()->sync($request->validated('certifications', []));
+
+            return $product;
+        });
+
+        return redirect()->route('admin.products.show', $product->id)->with('success', "Le produit « {$product->name} » a été créé.");
     }
 
     public function show(int $product): View
@@ -67,21 +79,76 @@ class ProductController extends Controller
         return view('admin.products.edit', $this->formData() + ['product' => Product::with(['category', 'producer', 'certifications'])->findOrFail($product)]);
     }
 
-    public function update(Request $request, int $product): RedirectResponse
+    public function update(ProductRequest $request, int $product): RedirectResponse
     {
-        Product::findOrFail($product);
-        $data = $this->validated($request);
+        $product = Product::findOrFail($product);
+        $data = $request->safe()->except(['certifications', 'image']);
+        $oldImage = $product->image;
 
-        // TODO(Gestion 1): $product->update($data) + sync certifications
-        return redirect()->route('admin.products.show', $product)->with('success', "Le produit « {$data['name']} » a été mis à jour.");
+        if ($request->hasFile('image')) {
+            $data['image'] = $request->file('image')->store('products', 'public');
+        }
+
+        DB::transaction(function () use ($product, $data, $request) {
+            $product->update($data);
+            $product->certifications()->sync($request->validated('certifications', []));
+        });
+
+        if ($oldImage && $oldImage !== $product->image) {
+            Storage::disk('public')->delete($oldImage);
+        }
+
+        return redirect()->route('admin.products.show', $product->id)->with('success', "Le produit « {$product->name} » a été mis à jour.");
     }
 
     public function destroy(int $product): RedirectResponse
     {
-        $product = Product::findOrFail($product);
+        $product = Product::withCount('reports')->findOrFail($product);
 
-        // TODO(Gestion 1): $product->delete()
+        // Citizen reports keep pointing at their target: the product is unpublished instead of deleted.
+        if ($product->reports_count) {
+            return back()->with('error', "Le produit « {$product->name} » fait l'objet de signalements : passez-le en brouillon plutôt que de le supprimer.");
+        }
+
+        $product->delete();
+        if ($product->image) {
+            Storage::disk('public')->delete($product->image);
+        }
+
         return redirect()->route('admin.products.index')->with('success', "Le produit « {$product->name} » a été supprimé.");
+    }
+
+    /**
+     * Pre-fills the product form from Open Food Facts (JSON for the ntBarcodeImport Alpine component).
+     * The category is suggested by matching the OFF categories of the product with our categories' off_tag.
+     */
+    public function lookup(string $barcode, OpenFoodFacts $openFoodFacts): JsonResponse
+    {
+        $data = $openFoodFacts->product($barcode);
+        if (! $data) {
+            return response()->json(['message' => "Aucun produit trouvé sur Open Food Facts pour le code-barres {$barcode}."], 404);
+        }
+
+        $category = Category::whereIn('off_tag', $data['categories'])->orderBy('id')->first();
+
+        return response()->json([
+            'fields' => array_filter([
+                'name' => $data['name'],
+                'format' => $data['quantity'],
+                'description' => $data['description'],
+                'composition' => $data['ingredients'],
+                'category_id' => $category?->id,
+            ]),
+            'summary' => [
+                'name' => $data['name'],
+                'brands' => $data['brands'],
+                'nutriscore' => $data['nutriscore'],
+                'nova' => $data['nova'] ? OpenFoodFacts::NOVA_LABELS[$data['nova']] : null,
+                'allergens' => $data['allergens'],
+                'category' => $category?->name,
+                'url' => $data['url'],
+            ],
+        ]);
     }
 
     private function formData(): array
@@ -92,23 +159,5 @@ class ProductController extends Controller
             'certifications' => Certification::orderBy('id')->get(),
             'statuses' => StatusBadge::options('product'),
         ];
-    }
-
-    private function validated(Request $request): array
-    {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-            'category_id' => ['required', 'integer'],
-            'producer_id' => ['required', 'integer'],
-            'region' => ['required', 'string', 'max:80'],
-            'format' => ['required', 'string', 'max:80'],
-            'price' => ['required', 'numeric', 'min:0', 'max:10000'],
-            'status' => ['required', 'in:'.implode(',', array_keys(StatusBadge::options('product')))],
-            'description' => ['required', 'string', 'min:20', 'max:2000'],
-            'composition' => ['nullable', 'string', 'max:1000'],
-            'certifications' => ['nullable', 'array'],
-            'certifications.*' => ['integer'],
-            'image' => ['nullable', 'image', 'max:4096'],
-        ]);
     }
 }

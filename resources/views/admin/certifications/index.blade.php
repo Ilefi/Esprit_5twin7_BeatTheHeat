@@ -17,7 +17,7 @@
 
 @section('content')
     <x-nt.data-table caption="Liste des certifications">
-        <thead><tr><th scope="col">Label</th><th scope="col">Organisme</th><th scope="col">Produits</th><th scope="col">Acteurs</th><th scope="col" class="text-right">Actions</th></tr></thead>
+        <thead><tr><th scope="col">Label</th><th scope="col">Organisme</th><th scope="col">Expiration</th><th scope="col">Produits</th><th scope="col">Acteurs</th><th scope="col" class="text-right">Actions</th></tr></thead>
         <tbody>
             @foreach ($certifications as $certification)
                 <tr>
@@ -28,6 +28,13 @@
                         </div>
                     </td>
                     <td class="max-w-64 truncate text-muted-foreground">{{ $certification->issuer }}</td>
+                    <td class="whitespace-nowrap">
+                        @if ($certification->is_expired)
+                            <x-nt.badge variant="danger" icon="fa-calendar-xmark">Expirée le {{ $certification->expires_at->translatedFormat('d M Y') }}</x-nt.badge>
+                        @else
+                            <span class="text-muted-foreground">{{ $certification->expires_at?->translatedFormat('d M Y') ?? 'Sans expiration' }}</span>
+                        @endif
+                    </td>
                     <td>{{ $certification->products_count }}</td>
                     <td>{{ $certification->actors_count }}</td>
                     <td>
@@ -43,6 +50,6 @@
     </x-nt.data-table>
 
     @foreach ($certifications as $certification)
-        @include('partials.admin.delete-modal', ['name' => 'delete-cert-'.$certification->id, 'action' => route('admin.certifications.destroy', $certification->id), 'label' => $certification->name])
+        @include('partials.admin.delete-modal', ['name' => 'delete-cert-'.$certification->id, 'action' => route('admin.certifications.destroy', $certification->id), 'label' => $certification->name, 'warning' => 'Le label sera retiré des produits et acteurs qui l\'affichent.'])
     @endforeach
 @endsection

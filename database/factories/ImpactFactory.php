@@ -27,12 +27,9 @@ class ImpactFactory extends Factory
             'distance_km' => fake()->numberBetween(20, 1500),
             'packaging' => fake()->randomElement(array_keys(EcoScore::PACKAGING_PENALTIES)),
             'seasonal' => fake()->boolean(),
-            'breakdown' => [
-                'Production' => $production,
-                'Transformation' => $processing,
-                'Transport' => $transport,
-                'Emballage' => 100 - $production - $processing - $transport,
-            ],
+            'methodology' => fake()->randomElement(array_keys(EcoScore::METHODOLOGIES)),
+            'source' => null,
+            'breakdown' => array_combine(EcoScore::BREAKDOWN_STAGES, [$production, $processing, $transport, 100 - $production - $processing - $transport]),
         ];
     }
 }

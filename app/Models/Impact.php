@@ -16,7 +16,7 @@ class Impact extends Model
     /** @use HasFactory<ImpactFactory> */
     use HasFactory;
 
-    protected $fillable = ['product_id', 'co2_per_kg', 'water_per_kg', 'distance_km', 'packaging', 'seasonal', 'breakdown'];
+    protected $fillable = ['product_id', 'co2_per_kg', 'water_per_kg', 'distance_km', 'packaging', 'seasonal', 'methodology', 'source', 'breakdown'];
 
     protected function casts(): array
     {

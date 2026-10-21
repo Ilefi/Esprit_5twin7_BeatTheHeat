@@ -22,6 +22,16 @@ class EcoScore
         'plastic' => 'Plastique',
     ];
 
+    public const METHODOLOGIES = [
+        'lca' => 'Analyse du cycle de vie (ACV)',
+        'measured' => 'Mesures sur site',
+        'estimated' => 'Estimation par facteurs d\'émission',
+        'declared' => 'Données déclarées par le producteur',
+    ];
+
+    /** Stages of the emissions breakdown, in percent (they must add up to 100). */
+    public const BREAKDOWN_STAGES = ['Production', 'Transformation', 'Transport', 'Emballage'];
+
     public static function points(float $co2PerKg, float $waterPerKg, float $distanceKm, string $packaging, bool $seasonal): int
     {
         $points = 100;

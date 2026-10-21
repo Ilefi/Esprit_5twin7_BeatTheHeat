@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Impact;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CategoryController extends Controller
@@ -23,39 +26,75 @@ class CategoryController extends Controller
 
     public function index(): View
     {
+        $categories = Category::withCount('products')
+            ->withAvg('impacts as eco_avg', 'eco_points')
+            ->with('substitutes')
+            ->orderBy('id')
+            ->get();
+
+        // Eco-score distribution per category: [category_id => ['A' => n, …]]
+        $grades = Impact::join('products', 'products.id', '=', 'impacts.product_id')
+            ->selectRaw('products.category_id, impacts.eco_score, count(*) as total')
+            ->groupBy('products.category_id', 'impacts.eco_score')
+            ->get()
+            ->groupBy('category_id')
+            ->map(fn ($rows) => $rows->pluck('total', 'eco_score')->map(fn ($total) => (int) $total)->all());
+
         return view('admin.categories.index', [
-            'categories' => Category::withCount('products')->get(),
+            'categories' => $categories,
+            'grades' => $grades,
             'icons' => self::ICONS,
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validateWithBag('createCategory', $this->rules());
+        $data = $request->validateWithBag('createCategory', $this->rules(), $this->messages());
+        $category = Category::create(Arr::except($data, 'substitutes'));
+        $category->syncSubstitutes($data['substitutes'] ?? []);
 
-        return redirect()->route('admin.categories.index')->with('success', "La catégorie « {$data['name']} » a été créée.");
+        return redirect()->route('admin.categories.index')->with('success', "La catégorie « {$category->name} » a été créée.");
     }
 
     public function update(Request $request, int $category): RedirectResponse
     {
-        Category::findOrFail($category);
-        $data = $request->validateWithBag('editCategory'.$category, $this->rules());
+        $category = Category::findOrFail($category);
+        $data = $request->validateWithBag('editCategory'.$category->id, $this->rules($category), $this->messages());
+        $category->update(Arr::except($data, 'substitutes'));
+        $category->syncSubstitutes($data['substitutes'] ?? []);
 
-        return redirect()->route('admin.categories.index')->with('success', "La catégorie « {$data['name']} » a été mise à jour.");
+        return redirect()->route('admin.categories.index')->with('success', "La catégorie « {$category->name} » a été mise à jour.");
     }
 
     public function destroy(int $category): RedirectResponse
     {
-        $category = Category::findOrFail($category);
+        $category = Category::withCount('products')->findOrFail($category);
+
+        if ($category->products_count) {
+            return back()->with('error', "La catégorie « {$category->name} » contient {$category->products_count} produit(s) : reclassez-les avant de la supprimer.");
+        }
+
+        $category->delete();
 
         return redirect()->route('admin.categories.index')->with('success', "La catégorie « {$category->name} » a été supprimée.");
     }
 
-    private function rules(): array
+    private function rules(?Category $category = null): array
     {
         return [
-            'name' => ['required', 'string', 'max:80'],
+            'name' => ['required', 'string', 'max:80', Rule::unique('categories')->ignore($category)],
             'icon' => ['required', 'in:'.implode(',', array_keys(self::ICONS))],
+            'off_tag' => ['nullable', 'string', 'max:100', 'regex:/^[a-z]{2}:[a-z0-9-]+$/'],
+            'substitutes' => ['nullable', 'array'],
+            'substitutes.*' => ['integer', 'distinct', Rule::exists('categories', 'id'), Rule::notIn(array_filter([$category?->id]))],
+        ];
+    }
+
+    private function messages(): array
+    {
+        return [
+            'off_tag.regex' => 'Le tag Open Food Facts doit avoir la forme « en:honeys » (langue, deux-points, mots en minuscules séparés par des tirets).',
+            'substitutes.*.not_in' => 'Une catégorie ne peut pas être sa propre catégorie de remplacement.',
         ];
     }
 }

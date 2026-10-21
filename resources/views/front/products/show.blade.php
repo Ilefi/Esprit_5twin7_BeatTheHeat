@@ -52,13 +52,24 @@
                             <p class="text-xs text-muted-foreground">{{ $product->format }}</p>
                             <p class="font-heading text-3xl font-bold">{{ number_format($product->price, 2, ',', ' ') }} <span class="text-lg">DT</span></p>
                         </div>
+                        @if ($categoryRank)
+                            <a href="#nutrition" class="flex w-full items-center gap-2 border-t pt-4 text-sm hover:text-primary-strong">
+                                <i class="fa-solid fa-ranking-star text-primary-strong" aria-hidden="true"></i>
+                                <span>Plus durable que <strong>{{ $categoryRank['better_than'] }} %</strong> des produits « {{ $product->category->name }} »</span>
+                            </a>
+                        @endif
                     </div>
 
                     <div class="mt-5">
-                        <p class="mb-2 text-sm font-semibold">Certifications vérifiées</p>
+                        <p class="mb-2 text-sm font-semibold">Certifications</p>
                         <div class="flex flex-wrap gap-2">
                             @forelse ($product->certifications as $certification)
-                                <a href="{{ route('front.certifications.show', $certification->slug) }}"><x-nt.cert-badge :certification="$certification" full class="px-3 py-1 text-sm" /></a>
+                                <a href="{{ route('front.certifications.show', $certification->slug) }}" class="inline-flex items-center gap-1.5">
+                                    <x-nt.cert-badge :certification="$certification" full @class(['px-3 py-1 text-sm', 'opacity-60 line-through' => $certification->is_expired]) />
+                                    @if ($certification->is_expired)
+                                        <x-nt.badge variant="danger">Expirée</x-nt.badge>
+                                    @endif
+                                </a>
                             @empty
                                 <span class="text-sm text-muted-foreground">Aucune certification déclarée.</span>
                             @endforelse
@@ -69,7 +80,7 @@
                         @if ($batch)
                             <x-nt.button :href="route('front.traceability.batch', $batch->code)" icon="fa-route">Voir le parcours</x-nt.button>
                         @endif
-                        <x-nt.button :href="route('front.impact.compare', ['produits' => array_filter([$product->id, $similarProducts->first()?->id])])" variant="outline" icon="fa-scale-unbalanced">Comparer l'empreinte</x-nt.button>
+                        <x-nt.button :href="route('front.impact.compare', ['produits' => array_filter([$product->id, ($alternatives->first() ?? $similarProducts->first())?->id])])" variant="outline" icon="fa-scale-unbalanced">Comparer l'empreinte</x-nt.button>
                         <x-nt.button :href="route('front.reports.create', ['cible' => 'product', 'id' => $product->id])" variant="ghost" icon="fa-flag" class="text-danger-strong">Signaler ce produit</x-nt.button>
                     </div>
                 </div>
@@ -83,6 +94,7 @@
             'certifications' => ['label' => 'Certifications', 'icon' => 'fa-award', 'count' => $product->certifications->count()],
             'tracabilite' => ['label' => 'Traçabilité', 'icon' => 'fa-route'],
             'empreinte' => ['label' => 'Empreinte', 'icon' => 'fa-leaf'],
+            'nutrition' => ['label' => 'Nutrition & repères', 'icon' => 'fa-heart-pulse'],
             'avis' => ['label' => 'Avis', 'icon' => 'fa-star', 'count' => $reviewStats->count],
         ]" :active="$errors->review->any() || request()->hasAny(['note', 'tri_avis', 'verifie']) ? 'avis' : 'description'">
 
@@ -108,10 +120,19 @@
                         <x-nt.card>
                             <div class="flex items-start justify-between gap-3">
                                 <x-nt.cert-badge :certification="$certification" full />
-                                <x-nt.badge variant="success" icon="fa-circle-check">Certificat vérifié</x-nt.badge>
+                                @if ($certification->is_expired)
+                                    <x-nt.badge variant="danger" icon="fa-calendar-xmark">Certificat expiré</x-nt.badge>
+                                @else
+                                    <x-nt.badge variant="success" icon="fa-circle-check">Certificat valide</x-nt.badge>
+                                @endif
                             </div>
                             <p class="mt-3 text-sm text-foreground/85">{{ $certification->description }}</p>
-                            <p class="mt-2 text-xs text-muted-foreground">Délivré par {{ $certification->issuer }}</p>
+                            <p class="mt-2 text-xs text-muted-foreground">
+                                Délivré par {{ $certification->issuer }}
+                                @if ($certification->expires_at)
+                                    · {{ $certification->is_expired ? 'Expiré depuis le' : 'Valide jusqu\'au' }} {{ $certification->expires_at->translatedFormat('d F Y') }}
+                                @endif
+                            </p>
                             <x-slot:footer>
                                 <a href="{{ route('front.certifications.show', $certification->slug) }}" class="nt-link text-sm">Ce que garantit ce label</a>
                             </x-slot:footer>
@@ -152,7 +173,15 @@
             </x-nt.tab-panel>
 
             <x-nt.tab-panel name="empreinte">
-                @include('partials.front.impact-summary', ['product' => $product])
+                @if ($product->impact)
+                    @include('partials.front.impact-summary', ['product' => $product])
+                @else
+                    <x-nt.empty-state icon="fa-leaf" title="Empreinte en cours d'évaluation" description="Les indicateurs environnementaux de ce produit n'ont pas encore été publiés." />
+                @endif
+            </x-nt.tab-panel>
+
+            <x-nt.tab-panel name="nutrition">
+                @include('partials.front.product.nutrition')
             </x-nt.tab-panel>
 
             <x-nt.tab-panel name="avis">
@@ -160,6 +189,10 @@
             </x-nt.tab-panel>
         </x-nt.tabs>
     </section>
+
+    @if ($alternatives->isNotEmpty())
+        @include('partials.front.product.alternatives')
+    @endif
 
     @if ($similarProducts->isNotEmpty())
         <section class="nt-section bg-surface" aria-labelledby="similar-title">
