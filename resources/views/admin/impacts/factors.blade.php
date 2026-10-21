@@ -8,6 +8,10 @@
     @include('partials.shared.breadcrumb', ['items' => [['label' => 'Tableau de bord', 'url' => route('admin.dashboard')], ['label' => 'Empreintes', 'url' => route('admin.impacts.index')], ['label' => 'Facteurs d\'émission']]])
 @endsection
 
+@section('page_actions')
+    <x-nt.button :href="route('admin.factors.index')" size="sm" icon="fa-sliders">Gérer les facteurs</x-nt.button>
+@endsection
+
 @section('content')
     <x-nt.alert type="info" title="Valeurs pédagogiques" class="mb-6">
         Ces facteurs sont indicatifs et servent à la démonstration. Remplacez-les par une base de référence officielle avant toute mise en production.
