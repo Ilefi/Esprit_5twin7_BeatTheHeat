@@ -9,6 +9,9 @@
 @endsection
 
 @section('page_actions')
+    <a href="{{ route('admin.reports.export_pdf', $report->ref) }}" target="_blank" class="nt-btn nt-btn-outline nt-btn-sm">
+        <i class="fa-solid fa-file-pdf text-danger-strong me-1"></i> Dossier officiel (PDF)
+    </a>
     <x-status-badge type="report" :value="$report->status" class="px-3 py-1 text-sm" />
     <x-status-badge type="priority" :value="$report->priority" class="px-3 py-1 text-sm" />
 @endsection

@@ -45,6 +45,7 @@ Route::name('front.')->group(function () {
     Route::middleware('auth')->group(function () {
         Route::get('/signalements/nouveau', [Front\ReportController::class, 'create'])->name('reports.create');
         Route::post('/signalements', [Front\ReportController::class, 'store'])->name('reports.store');
+        Route::post('/signalements/ai-assist', [Front\ReportController::class, 'aiAssist'])->name('reports.ai_assist');
         Route::post('/produits/{slug}/avis', [Front\ReviewController::class, 'store'])->name('reviews.store');
         Route::post('/avis/{review}/utile', [Front\ReviewController::class, 'helpful'])->name('reviews.helpful')->whereNumber('review');
     });

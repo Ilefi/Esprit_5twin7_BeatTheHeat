@@ -16,11 +16,12 @@ class Impact extends Model
     /** @use HasFactory<ImpactFactory> */
     use HasFactory;
 
-    protected $fillable = ['product_id', 'co2_per_kg', 'water_per_kg', 'distance_km', 'packaging', 'seasonal', 'methodology', 'source', 'breakdown'];
+    protected $fillable = ['product_id', 'emission_factor_id', 'co2_per_kg', 'water_per_kg', 'distance_km', 'packaging', 'seasonal', 'methodology', 'source', 'breakdown'];
 
     protected function casts(): array
     {
         return [
+            'emission_factor_id' => 'integer',
             'co2_per_kg' => 'float',
             'water_per_kg' => 'float',
             'distance_km' => 'float',
@@ -41,5 +42,10 @@ class Impact extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function emissionFactor(): BelongsTo
+    {
+        return $this->belongsTo(EmissionFactor::class);
     }
 }

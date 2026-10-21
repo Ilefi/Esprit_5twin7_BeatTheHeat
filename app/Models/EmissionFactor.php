@@ -19,4 +19,9 @@ class EmissionFactor extends Model
             'value' => 'float',
         ];
     }
+
+    public function impacts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Impact::class);
+    }
 }

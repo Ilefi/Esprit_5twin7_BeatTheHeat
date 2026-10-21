@@ -50,6 +50,90 @@
         </div>
 
         <div class="space-y-6">
+            {{-- Assistant IA de Modération d'Avis --}}
+            <div x-data="{
+                loading: false,
+                analyzed: false,
+                data: null,
+                analyze() {
+                    this.loading = true;
+                    fetch('{{ route('admin.reviews.ai.analyze', $review->id) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        this.data = res;
+                        this.analyzed = true;
+                        this.loading = false;
+                    })
+                    .catch(err => {
+                        alert('Erreur lors de l\'analyse IA.');
+                        this.loading = false;
+                    });
+                },
+                applyRecommendation() {
+                    if (!this.data) return;
+                    const noteField = document.querySelector('textarea[name=\'note\']');
+                    if (noteField) {
+                        noteField.value = 'Analyse IA [' + this.data.sentiment + ' - ' + this.data.confidence + '% de confiance] : ' + this.data.summary;
+                    }
+                    if (this.data.tone === 'danger') {
+                        const rejectedRadio = document.querySelector('input[name=\'status\'][value=\'rejected\']');
+                        if (rejectedRadio) rejectedRadio.click();
+                    } else if (this.data.tone === 'success') {
+                        const publishedRadio = document.querySelector('input[name=\'status\'][value=\'published\']');
+                        if (publishedRadio) publishedRadio.click();
+                    }
+                }
+            }" class="nt-card border-primary/30 bg-primary/5 p-5">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
+                            <i class="fa-solid fa-brain"></i>
+                        </span>
+                        <div>
+                            <h2 class="text-sm font-bold text-foreground">Assistant IA Avis Consommateur</h2>
+                            <p class="text-xs text-muted-foreground">Sentiment & Authenticité</p>
+                        </div>
+                    </div>
+                    <button type="button" x-on:click="analyze()" :disabled="loading" class="nt-btn nt-btn-primary nt-btn-sm">
+                        <template x-if="!loading">
+                            <span><i class="fa-solid fa-wand-magic-sparkles me-1"></i> Analyser l'Avis</span>
+                        </template>
+                        <template x-if="loading">
+                            <span><i class="fa-solid fa-spinner fa-spin me-1"></i> Analyse en cours...</span>
+                        </template>
+                    </button>
+                </div>
+
+                <div x-show="analyzed" x-transition class="mt-4 space-y-3 border-t border-primary/20 pt-4 text-xs">
+                    <div class="flex items-center justify-between">
+                        <span class="font-semibold text-muted-foreground">Tonalité détectée :</span>
+                        <span class="nt-badge" :class="data?.tone === 'danger' ? 'bg-danger text-danger-foreground' : (data?.tone === 'gold' ? 'bg-gold text-gold-foreground' : 'bg-primary text-primary-foreground')">
+                            <strong x-text="data?.sentiment"></strong> · <span x-text="data?.confidence + '% confiance'"></span>
+                        </span>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="font-semibold text-muted-foreground">Authenticité :</span>
+                        <span class="font-bold text-foreground" x-text="data?.authenticity"></span>
+                    </div>
+
+                    <div class="rounded-lg bg-surface p-3 border">
+                        <p class="font-semibold text-foreground">💡 Synthèse sémantique :</p>
+                        <p class="mt-1 text-muted-foreground" x-text="data?.summary"></p>
+                    </div>
+
+                    <button type="button" x-on:click="applyRecommendation()" class="nt-btn nt-btn-outline nt-btn-sm w-full">
+                        <i class="fa-solid fa-wand-magic-sparkles text-primary me-1"></i> Insérer la synthèse IA en note
+                    </button>
+                </div>
+            </div>
+
             <x-nt.card>
                 <x-slot:header><h2 class="text-base font-semibold">Contexte</h2></x-slot:header>
                 <div class="flex items-center gap-3">

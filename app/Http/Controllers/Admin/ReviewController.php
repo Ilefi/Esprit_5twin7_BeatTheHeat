@@ -105,4 +105,46 @@ class ReviewController extends Controller
 
         return redirect()->route('admin.reviews.index')->with('success', 'Avis supprimé définitivement.');
     }
+
+    public function aiAnalyze(int $review, \App\Services\AiAnalysisService $aiService): \Illuminate\Http\JsonResponse
+    {
+        $reviewModel = Review::with(['product', 'user'])->findOrFail($review);
+        $result = $aiService->analyzeReview($reviewModel);
+
+        return response()->json($result);
+    }
+
+    public function exportCsv(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $reviews = Review::with(['product', 'user'])->latest()->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="avis-consommateurs-nutritrace-'.now()->format('Y-m-d').'.csv"',
+        ];
+
+        return response()->stream(function () use ($reviews) {
+            $handle = fopen('php://output', 'w');
+            fputs($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, ['ID', 'Produit', 'Auteur', 'Email', 'Note Globale', 'Qualité', 'Transparence', 'Rapport Q/P', 'Titre', 'Commentaire', 'Statut', 'Date'], ';');
+
+            foreach ($reviews as $rev) {
+                fputcsv($handle, [
+                    $rev->id,
+                    $rev->product->name ?? 'N/A',
+                    $rev->user->name ?? 'Anonyme',
+                    $rev->user->email ?? 'N/A',
+                    $rev->rating . '/5',
+                    $rev->quality_rating ? $rev->quality_rating . '/5' : 'N/A',
+                    $rev->transparency_rating ? $rev->transparency_rating . '/5' : 'N/A',
+                    $rev->value_rating ? $rev->value_rating . '/5' : 'N/A',
+                    $rev->title,
+                    $rev->body,
+                    $rev->status,
+                    $rev->created_at->format('d/m/Y H:i'),
+                ], ';');
+            }
+            fclose($handle);
+        }, 200, $headers);
+    }
 }

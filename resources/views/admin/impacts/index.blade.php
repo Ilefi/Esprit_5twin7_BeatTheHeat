@@ -35,11 +35,21 @@
     </nav>
 
     <x-nt.data-table caption="Empreintes des produits">
-        <thead><tr><th scope="col">Produit</th><th scope="col">CO₂e</th><th scope="col">Eau</th><th scope="col">Distance</th><th scope="col">Emballage</th><th scope="col">Score</th><th scope="col" class="text-right">Actions</th></tr></thead>
+        <thead><tr><th scope="col">Produit</th><th scope="col">Facteur réf.</th><th scope="col">CO₂e</th><th scope="col">Eau</th><th scope="col">Distance</th><th scope="col">Emballage</th><th scope="col">Score</th><th scope="col" class="text-right">Actions</th></tr></thead>
         <tbody>
             @foreach ($products as $product)
                 <tr>
                     <td class="font-semibold">{{ $product->name }}</td>
+                    <td class="text-xs text-muted-foreground">
+                        @if ($product->impact->emissionFactor)
+                            <a href="{{ route('admin.factors.edit', $product->impact->emissionFactor->id) }}" class="nt-link inline-flex items-center gap-1">
+                                <i class="fa-solid fa-link text-[10px]" aria-hidden="true"></i>
+                                <span class="max-w-[130px] truncate" title="{{ $product->impact->emissionFactor->name }}">{{ $product->impact->emissionFactor->name }}</span>
+                            </a>
+                        @else
+                            <span class="text-muted-foreground/60 italic">—</span>
+                        @endif
+                    </td>
                     <td class="whitespace-nowrap">{{ number_format($product->impact->co2_per_kg, 1, ',', ' ') }} kg</td>
                     <td class="whitespace-nowrap">{{ number_format($product->impact->water_per_kg, 0, ',', ' ') }} L</td>
                     <td class="whitespace-nowrap">{{ $product->impact->distance_km }} km</td>

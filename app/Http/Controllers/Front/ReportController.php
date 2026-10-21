@@ -123,4 +123,21 @@ class ReportController extends Controller
 
         return 1;
     }
+
+    public function aiAssist(Request $request, \App\Services\AiAnalysisService $aiService): \Illuminate\Http\JsonResponse
+    {
+        $validated = $request->validate([
+            'draft' => ['required', 'string', 'min:5'],
+            'type' => ['nullable', 'string'],
+            'target_name' => ['nullable', 'string'],
+        ]);
+
+        $result = $aiService->assistReportDraft(
+            $validated['draft'],
+            $validated['type'] ?? 'greenwashing',
+            $validated['target_name'] ?? null
+        );
+
+        return response()->json($result);
+    }
 }

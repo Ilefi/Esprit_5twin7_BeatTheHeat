@@ -139,4 +139,47 @@ class ReportController extends Controller
 
         return response()->json($result);
     }
+
+    public function exportPdf(string $ref, \App\Services\AiAnalysisService $aiService): \Illuminate\View\View
+    {
+        $report = Report::where('ref', $ref)->withTarget()->with(['reporter', 'assignee', 'evidence', 'messages', 'notes', 'history'])->firstOrFail();
+        $aiAnalysis = $aiService->analyzeReport($report);
+
+        return view('admin.reports.dossier-pdf', [
+            'report' => $report,
+            'aiAnalysis' => $aiAnalysis,
+        ]);
+    }
+
+    public function exportCsv(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $reports = Report::withTarget()->with(['reporter', 'assignee'])->latest()->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="signalements-greenwashing-nutritrace-'.now()->format('Y-m-d').'.csv"',
+        ];
+
+        return response()->stream(function () use ($reports) {
+            $handle = fopen('php://output', 'w');
+            fputs($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, ['Référence', 'Type d\'anomalie', 'Cible', 'Déclarant', 'Email', 'Statut', 'Priorité', 'Date de signalement', 'Description', 'Résolution'], ';');
+
+            foreach ($reports as $rep) {
+                fputcsv($handle, [
+                    $rep->ref,
+                    $rep->type,
+                    $rep->target->name ?? 'N/A',
+                    $rep->reporter->name ?? 'Anonyme',
+                    $rep->reporter->email ?? 'N/A',
+                    $rep->status,
+                    $rep->priority,
+                    $rep->created_at->format('d/m/Y H:i'),
+                    $rep->description,
+                    $rep->resolution ?? 'En cours d\'instruction',
+                ], ';');
+            }
+            fclose($handle);
+        }, 200, $headers);
+    }
 }
