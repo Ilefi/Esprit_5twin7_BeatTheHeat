@@ -22,7 +22,7 @@ class ImpactController extends Controller
         $products = Product::whereHas('impact', fn (Builder $query) => $query->when(
             in_array($eco, ['A', 'B', 'C', 'D', 'E'], true),
             fn (Builder $query) => $query->where('eco_score', $eco),
-        ))->with(['impact', 'category'])->orderByEcoPoints()->orderBy('id');
+        ))->with(['impact.emissionFactor', 'category'])->orderByEcoPoints()->orderBy('id');
 
         return view('admin.impacts.index', [
             'products' => $products->paginate(8)->withQueryString(),
@@ -75,11 +75,35 @@ class ImpactController extends Controller
         ]);
     }
 
+    public function aiOptimize(Request $request, \App\Services\AiAnalysisService $aiService): \Illuminate\Http\JsonResponse
+    {
+        $validated = $request->validate([
+            'co2_per_kg' => ['nullable', 'numeric'],
+            'water_per_kg' => ['nullable', 'numeric'],
+            'distance_km' => ['nullable', 'numeric'],
+            'packaging' => ['nullable', 'string'],
+            'seasonal' => ['nullable', 'boolean'],
+            'emission_factor_id' => ['nullable', 'integer'],
+        ]);
+
+        if (!empty($validated['emission_factor_id'])) {
+            $factor = EmissionFactor::find($validated['emission_factor_id']);
+            if ($factor) {
+                $validated['factor_name'] = $factor->name . ' (' . $factor->value . ' ' . $factor->unit . ')';
+            }
+        }
+
+        $result = $aiService->optimizeFootprint($validated);
+
+        return response()->json($result);
+    }
+
     private function formData(): array
     {
         return [
             'packaging' => EcoScore::PACKAGING_LABELS,
             'methodologies' => EcoScore::METHODOLOGIES,
+            'emissionFactors' => EmissionFactor::orderBy('category')->orderBy('name')->pluck('name', 'id')->all(),
         ];
     }
 

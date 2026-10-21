@@ -43,7 +43,7 @@ Réponds au format JSON strict avec ces 4 champs:
   \"recommended_resolution\": \"Proposition de décision motivée pour le modérateur.\"
 }";
 
-                $response = Http::timeout(5)->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}", [
+                $response = Http::timeout(10)->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={$apiKey}", [
                     'contents' => [['parts' => [['text' => $prompt]]]],
                 ]);
 
@@ -161,6 +161,113 @@ Réponds au format JSON strict avec ces 4 champs:
             'confidence' => $score,
             'is_constructive' => $isConstructive,
             'summary' => $isConstructive ? "Retour d'expérience constructif et argumenté." : "Avis court nécessitant une vérification standard.",
+        ];
+    }
+
+    /**
+     * Recommandations d'éco-conception basées sur l'IA (Module Empreinte & Facteurs).
+     */
+    public function optimizeFootprint(array $data): array
+    {
+        $co2 = (float) ($data['co2_per_kg'] ?? 1.5);
+        $water = (float) ($data['water_per_kg'] ?? 800);
+        $distance = (float) ($data['distance_km'] ?? 150);
+        $packaging = $data['packaging'] ?? 'recyclable';
+        $seasonal = (bool) ($data['seasonal'] ?? true);
+        $factorName = $data['factor_name'] ?? 'Moyenne sectorielle';
+
+        $apiKey = config('services.gemini.key') ?? env('GEMINI_API_KEY');
+        if ($apiKey) {
+            try {
+                $prompt = "Tu es un ingénieur expert en analyse du cycle de vie (ACV) et éco-conception alimentaire.
+Analyse les indicateurs de cette empreinte environnementale :
+- Facteur de référence lié : {$factorName}
+- CO2 : {$co2} kg CO2e/kg
+- Consommation d'eau : {$water} L/kg
+- Distance logistique : {$distance} km
+- Type d'emballage : {$packaging}
+- Saisonnalité : " . ($seasonal ? 'Oui' : 'Non') . "
+
+Fournis 3 recommandations concrètes et mesurables d'éco-conception pour réduire cette empreinte et améliorer l'éco-score.
+Réponds au format JSON strict :
+{
+  \"summary\": \"Synthèse globale de l'impact en 2 phrases.\",
+  \"potential_gain\": \"Gain estimé d'éco-score (ex. +15 points / passage note B à A)\",
+  \"recommendations\": [
+    {\"stage\": \"Transport\", \"action\": \"Description précise\", \"saving\": \"-18% CO2\"},
+    {\"stage\": \"Emballage\", \"action\": \"Description précise\", \"saving\": \"-25% CO2\"},
+    {\"stage\": \"Production\", \"action\": \"Description précise\", \"saving\": \"-12% Eau\"}
+  ]
+}";
+
+                $response = Http::timeout(10)->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={$apiKey}", [
+                    'contents' => [['parts' => [['text' => $prompt]]]],
+                ]);
+
+                if ($response->successful()) {
+                    $jsonText = $response->json('candidates.0.content.parts.0.text');
+                    $cleanJson = Str::between($jsonText, '{', '}');
+                    $result = json_decode('{' . $cleanJson . '}', true);
+                    if ($result && isset($result['recommendations'])) {
+                        return $result;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Fallback heuristique local
+            }
+        }
+
+        // Moteur heuristique d'éco-conception local
+        $recs = [];
+        $gainPoints = 0;
+
+        if ($distance > 200) {
+            $recs[] = [
+                'stage' => 'Transport',
+                'action' => "Optimiser l'approvisionnement en circuits courts locaux (< 100 km) ou favoriser le ferroutage.",
+                'saving' => '-35% CO2 logistique',
+            ];
+            $gainPoints += 8;
+        }
+
+        if (in_array($packaging, ['plastic', 'mixed'], true)) {
+            $recs[] = [
+                'stage' => 'Emballage',
+                'action' => "Remplacer l'emballage actuel ({$packaging}) par des contenants compostables ou en carton certifié FSC.",
+                'saving' => '-50% empreinte emballage',
+            ];
+            $gainPoints += 12;
+        } else {
+            $recs[] = [
+                'stage' => 'Emballage',
+                'action' => 'Alléger le grammage de l’emballage recyclable de 15% pour réduire le poids transporté.',
+                'saving' => '-8% impact matière',
+            ];
+            $gainPoints += 4;
+        }
+
+        if (!$seasonal) {
+            $recs[] = [
+                'stage' => 'Production',
+                'action' => "Aligner les cycles de récolte sur la pleine saison naturelle pour éviter le stockage sous atmosphère contrôlée et serres chauffées.",
+                'saving' => '-40% énergie & CO2',
+            ];
+            $gainPoints += 10;
+        }
+
+        if ($water > 1000) {
+            $recs[] = [
+                'stage' => 'Irrigation',
+                'action' => 'Déployer des sondes d’humidité capacitives et le goutte-à-goutte intelligent sur les parcelles.',
+                'saving' => '-25% prélèvement eau',
+            ];
+            $gainPoints += 5;
+        }
+
+        return [
+            'summary' => "L'analyse montre une empreinte significative dominée par " . ($distance > 300 ? "le fret" : "la phase de production agricole") . ". Des leviers immédiats existent pour rehausser la note environnementale.",
+            'potential_gain' => "+{$gainPoints} points estimés sur l'éco-score global",
+            'recommendations' => array_slice($recs, 0, 3),
         ];
     }
 }

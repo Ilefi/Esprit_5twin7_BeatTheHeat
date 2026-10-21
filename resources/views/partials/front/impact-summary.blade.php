@@ -30,6 +30,9 @@
         </dl>
         <p class="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <x-nt.badge variant="info" icon="fa-flask">{{ \App\Support\EcoScore::METHODOLOGIES[$impact->methodology] }}</x-nt.badge>
+            @if ($impact->emissionFactor)
+                <span>Facteur réf. : <strong class="text-foreground">{{ $impact->emissionFactor->name }}</strong> ({{ $impact->emissionFactor->value }} {{ $impact->emissionFactor->unit }})</span> ·
+            @endif
             @if ($impact->source)
                 <span>Source : {{ $impact->source }}</span> ·
             @endif

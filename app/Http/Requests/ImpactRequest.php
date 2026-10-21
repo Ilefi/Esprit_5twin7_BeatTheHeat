@@ -25,6 +25,7 @@ class ImpactRequest extends FormRequest
             'distance_km' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:20000'],
             'packaging' => ['required', Rule::in(array_keys(EcoScore::PACKAGING_LABELS))],
             'seasonal' => ['required', 'boolean'],
+            'emission_factor_id' => ['nullable', 'integer', Rule::exists('emission_factors', 'id')],
             'methodology' => ['required', Rule::in(array_keys(EcoScore::METHODOLOGIES))],
             'source' => ['nullable', 'string', 'max:255'],
             'breakdown' => ['required', 'array:'.implode(',', EcoScore::BREAKDOWN_STAGES)],
