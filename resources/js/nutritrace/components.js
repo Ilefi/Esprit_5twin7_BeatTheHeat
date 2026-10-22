@@ -282,6 +282,50 @@ export default function registerComponents(Alpine) {
         },
     }));
 
+
+    // AI draft of a traceability step's "action réalisée" (Gemini, App\Services\TraceabilityAssistant), from the fields of the step form.
+    Alpine.data('ntAiStepWriter', (url) => ({
+        loading: false,
+        error: null,
+        result: null,
+        filled: false,
+
+        get warnings() {
+            return this.result?.warnings ?? [];
+        },
+
+        async generate() {
+            if (this.loading) return;
+
+            this.loading = true;
+            this.error = null;
+            this.result = null;
+            this.filled = false;
+
+            try {
+                this.result = await postForm(url, this.$root.closest('form'));
+                this.filled = fillEmpty(this.field(), this.result.action);
+            } catch (error) {
+                this.error = error.message;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        // The admin explicitly replaces what they typed with the AI draft.
+        applyAll() {
+            if (!this.result) return;
+
+            setField(this.field(), this.result.action);
+            this.filled = true;
+        },
+
+        field() {
+            return this.$root.closest('form').elements.action;
+        },
+    }));
+
+
     // AI settings of a category (icon, Open Food Facts tag, substitutes) for the create / edit modal form with id formId.
     Alpine.data('ntAiCategoryAssistant', (url, formId, categoryId = null) => ({
         loading: false,

@@ -18,7 +18,26 @@
         <x-nt.form.input name="location" label="Lieu" :value="$step?->location" :bag="$bag" :use-old="$failed" :id="$prefix.'-location'" required />
         <x-nt.form.input name="date" type="date" label="Date" :value="$step?->date->toDateString()" :bag="$bag" :use-old="$failed" :id="$prefix.'-date'" required />
         <x-nt.form.input name="distance_km" type="number" min="0" label="Distance depuis l'étape précédente (km)" :value="$step?->distance_km" :bag="$bag" :use-old="$failed" :id="$prefix.'-km'" class="sm:col-span-2" />
-        <x-nt.form.textarea name="action" label="Action réalisée" :value="$step?->action" :bag="$bag" :use-old="$failed" :id="$prefix.'-action'" rows="3" :maxlength="500" required class="sm:col-span-2" />
+                <div class="grid gap-3 sm:col-span-2" x-data="ntAiStepWriter('{{ route('admin.batches.steps.ai', $batch->id) }}')">
+            <div class="flex justify-end">
+                <x-nt.button variant="gold" size="sm" type="button" icon="fa-wand-magic-sparkles" x-on:click="generate()" x-bind:disabled="loading">
+                    <span x-text="loading ? 'Rédaction…' : 'Rédiger avec l’IA'">Rédiger avec l’IA</span>
+                </x-nt.button>
+            </div>
+            <div x-show="error" x-cloak class="flex items-start gap-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger-strong" role="alert">
+                <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+                <span x-text="error"></span>
+            </div>
+            <div x-show="warnings.length" x-cloak class="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger-strong" role="list">
+                <template x-for="(warning, index) in warnings" :key="index">
+                    <p x-text="warning"></p>
+                </template>
+            </div>
+            <x-nt.form.textarea name="action" label="Action réalisée" :value="$step?->action" :bag="$bag" :use-old="$failed" :id="$prefix.'-action'" rows="3" :maxlength="500" required class="sm:col-span-2" />
+            <div x-show="result && !filled" x-cloak>
+                <x-nt.button variant="ghost" size="sm" type="button" x-on:click="applyAll()">Remplacer par la proposition</x-nt.button>
+            </div>
+        </div>
     </form>
     <x-slot:footer>
         <x-nt.button variant="ghost" x-on:click="$dispatch('close-modal')">Annuler</x-nt.button>

@@ -86,4 +86,12 @@ class TraceabilityAssistantTest extends TestCase
         $this->actingAs($consumer)->postJson($this->url(), $payload)->assertForbidden();
         $this->actingAs($this->admin)->postJson($this->url(999999), $payload)->assertNotFound();
     }
+
+        public function test_admin_lot_page_offers_the_ai_draft_button(): void
+    {
+        $this->actingAs($this->admin)->get(route('admin.batches.show', $this->batch))
+            ->assertOk()
+            ->assertSee('Rédiger avec l’IA')
+            ->assertSee(route('admin.batches.steps.ai', $this->batch->id), false);
+    }
 }
