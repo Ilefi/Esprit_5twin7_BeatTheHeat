@@ -16,6 +16,7 @@ use Tests\TestCase;
 class TraceabilityAssistantTest extends TestCase
 {
     use RefreshDatabase;
+    private const TITLE = 'Récolte des olives';
 
     private User $admin;
 
@@ -48,20 +49,20 @@ class TraceabilityAssistantTest extends TestCase
 
         $this->actingAs($this->admin)->postJson($this->url(), [
             'stage' => 'production',
-            'title' => 'Récolte des olives',
+            'title' => self::TITLE,
             'location' => 'Oliveraie Zitouna, Sfax',
         ])->assertOk()
             ->assertJsonPath('action', "Récolte manuelle de 18 t d'olives, produit zéro impact.")
             ->assertJsonPath('warnings', ['Allégation à vérifier : zéro impact', 'Chiffre non fourni : 18']);
 
         Http::assertSent(fn (Request $request) => $request->hasHeader('x-goog-api-key', 'test-key')
-            && str_contains($request['contents'][0]['parts'][0]['text'], 'Récolte des olives')
+            && str_contains($request['contents'][0]['parts'][0]['text'], self::TITLE)
             && str_contains($request['contents'][0]['parts'][0]['text'], 'Oliveraie Zitouna'));
     }
 
     public function test_step_draft_needs_a_title_a_key_and_an_answer(): void
     {
-        $payload = ['stage' => 'production', 'title' => 'Récolte des olives'];
+        $payload = ['stage' => 'production', 'title' => self::TITLE];
 
         $this->actingAs($this->admin)->postJson($this->url(), ['stage' => 'production', 'title' => ''])
             ->assertUnprocessable()->assertJsonValidationErrors('title');
@@ -81,7 +82,7 @@ class TraceabilityAssistantTest extends TestCase
     public function test_step_draft_is_admin_only_and_needs_an_existing_lot(): void
     {
         $consumer = User::where('email', 'consumer@nutritrace.tn')->firstOrFail();
-        $payload = ['stage' => 'production', 'title' => 'Récolte des olives'];
+        $payload = ['stage' => 'production', 'title' => self::TITLE];
 
         $this->actingAs($consumer)->postJson($this->url(), $payload)->assertForbidden();
         $this->actingAs($this->admin)->postJson($this->url(999999), $payload)->assertNotFound();

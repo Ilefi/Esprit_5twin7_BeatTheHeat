@@ -28,11 +28,13 @@
                 <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
                 <span x-text="error"></span>
             </div>
-            <div x-show="warnings.length" x-cloak class="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger-strong" role="list">
+            
+            <ul x-show="warnings.length" x-cloak class="list-disc list-inside rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger-strong">
                 <template x-for="(warning, index) in warnings" :key="index">
-                    <p x-text="warning"></p>
+                    <li x-text="warning"></li>
                 </template>
-            </div>
+            </ul>
+
             <x-nt.form.textarea name="action" label="Action réalisée" :value="$step?->action" :bag="$bag" :use-old="$failed" :id="$prefix.'-action'" rows="3" :maxlength="500" required class="sm:col-span-2" />
             <div x-show="result && !filled" x-cloak>
                 <x-nt.button variant="ghost" size="sm" type="button" x-on:click="applyAll()">Remplacer par la proposition</x-nt.button>
