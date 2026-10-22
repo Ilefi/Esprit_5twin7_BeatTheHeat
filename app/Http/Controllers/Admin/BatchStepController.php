@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Actor;
 use App\Models\Batch;
+use App\Services\CatalogAssistant;
+use App\Services\TraceabilityAssistant;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -93,6 +97,53 @@ class BatchStepController extends Controller
 
         return redirect()->route('admin.batches.show', $batch->id)
             ->with('success', "Étape « {$step->title} » déplacée vers le ".($up ? 'haut' : 'bas').'.');
+    }
+
+    /**
+     * Toggles the "verified" flag of a step. A step with no actor (consumer stage) cannot be verified.
+     */
+    public function verify(int $batch, int $step): RedirectResponse
+    {
+        $batch = Batch::findOrFail($batch);
+        $step = $batch->steps()->findOrFail($step);
+
+        if (! $step->actor_id) {
+            return redirect()->route('admin.batches.show', $batch->id)
+                ->with('error', "L'étape « {$step->title} » ne peut pas être vérifiée : aucun acteur responsable n'y est rattaché.");
+        }
+
+        $step->update(['verified' => ! $step->verified]);
+
+        return redirect()->route('admin.batches.show', $batch->id)
+            ->with('success', $step->verified
+                ? "Étape « {$step->title} » marquée comme vérifiée."
+                : "Vérification retirée pour l'étape « {$step->title} ».");
+    }
+
+    /**
+     * AI draft of the "action réalisée" field, written from what the admin already typed in the step form.
+     */
+    public function generate(Request $request, int $batch, TraceabilityAssistant $assistant): JsonResponse
+    {
+        $batch = Batch::with('product')->findOrFail($batch);
+        $data = $request->validate([
+            'stage' => ['required', 'in:'.implode(',', array_keys(BatchController::STAGES))],
+            'title' => ['required', 'string', 'min:3', 'max:120'],
+            'location' => ['nullable', 'string', 'max:150'],
+            'actor_id' => ['nullable', 'integer', 'exists:actors,id'],
+            'date' => ['nullable', 'date'],
+            'distance_km' => ['nullable', 'numeric', 'min:0', 'max:20000'],
+        ], ['title.required' => 'Saisissez au moins l\'intitulé de l\'étape : l\'IA rédige l\'action à partir de lui.']);
+
+        if (! $assistant->configured()) {
+            return response()->json(['message' => CatalogAssistant::NOT_CONFIGURED], 503);
+        }
+
+        $draft = $assistant->stepAction($batch, $data, Actor::find($data['actor_id'] ?? null));
+
+        return $draft
+            ? response()->json($draft)
+            : response()->json(['message' => CatalogAssistant::UNAVAILABLE], 502);
     }
 
     /**

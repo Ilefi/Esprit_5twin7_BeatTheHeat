@@ -62,6 +62,14 @@
                                     </button>
                                 </form>
                             @endforeach
+                            <form method="POST" action="{{ route('admin.batches.steps.verify', [$batch->id, $step->id]) }}">
+                                @csrf
+                                <button type="submit" class="nt-btn nt-btn-ghost nt-btn-icon nt-btn-sm {{ $step->verified ? 'text-primary' : '' }}"
+                                        aria-label="{{ $step->verified ? 'Retirer la vérification de' : 'Vérifier' }} l'étape « {{ $step->title }} »"
+                                        @disabled(! $step->actor_id)>
+                                    <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                                </button>
+                            </form>
                             <button type="button" class="nt-btn nt-btn-ghost nt-btn-icon nt-btn-sm" x-data x-on:click="$dispatch('open-modal', 'step-{{ $step->id }}')" aria-label="Modifier l'étape « {{ $step->title }} »"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
                             <button type="button" class="nt-btn nt-btn-ghost nt-btn-icon nt-btn-sm text-danger-strong" x-data x-on:click="$dispatch('open-modal', 'delete-step-{{ $step->id }}')" aria-label="Supprimer l'étape « {{ $step->title }} »"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
                         </div>
@@ -85,6 +93,7 @@
                     <div class="flex justify-between"><dt class="text-muted-foreground">Étapes</dt><dd class="font-medium">{{ $batch->steps->count() }}</dd></div>
                     <div class="flex justify-between"><dt class="text-muted-foreground">Distance totale</dt><dd class="font-medium">{{ $batch->total_km }} km</dd></div>
                     <div class="flex justify-between"><dt class="text-muted-foreground">Acteurs</dt><dd class="font-medium">{{ $batch->actors_count }}</dd></div>
+                    <div class="flex justify-between"><dt class="text-muted-foreground">Complétude</dt><dd class="font-medium">{{ $batch->completeness }} %</dd></div>
                 </dl>
             </x-nt.card>
             <x-nt.card class="text-center">
