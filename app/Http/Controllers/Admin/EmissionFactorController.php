@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EmissionFactorRequest;
 use App\Models\EmissionFactor;
+use App\Services\AiAnalysisService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -77,5 +79,17 @@ class EmissionFactorController extends Controller
 
         return redirect()->route('admin.factors.index')
             ->with('success', "Le facteur d'émission « {$factor->name} » a été supprimé.");
+    }
+
+    public function aiEstimate(Request $request, AiAnalysisService $aiService): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'min:2', 'max:255'],
+            'category' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $result = $aiService->estimateFactor($validated['name'], $validated['category'] ?? null);
+
+        return response()->json($result);
     }
 }

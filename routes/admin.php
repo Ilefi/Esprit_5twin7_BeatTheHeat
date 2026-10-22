@@ -41,6 +41,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('lots/{batch}/etapes/{step}/deplacer', [Admin\BatchStepController::class, 'move'])->name('batches.steps.move')->whereNumber(['batch', 'step']);
     Route::post('lots/{batch}/etapes/{step}/verifier', [Admin\BatchStepController::class, 'verify'])->name('batches.steps.verify')->whereNumber(['batch', 'step']);
     // Module 3 — Empreinte environnementale
+    Route::post('facteurs-emission/ai-estimate', [Admin\EmissionFactorController::class, 'aiEstimate'])->name('factors.ai.estimate');
     Route::post('empreinte/ai-optimizer', [Admin\ImpactController::class, 'aiOptimize'])->name('impacts.ai.optimize');
     Route::resource('facteurs-emission', Admin\EmissionFactorController::class)
         ->names('factors')->parameters(['facteurs-emission' => 'factor'])->whereNumber('factor');
