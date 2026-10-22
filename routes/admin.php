@@ -35,6 +35,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('lots', Admin\BatchController::class)
         ->names('batches')->parameters(['lots' => 'batch'])->whereNumber('batch');
     Route::post('lots/{batch}/etapes', [Admin\BatchStepController::class, 'store'])->name('batches.steps.store')->whereNumber('batch');
+    Route::post('lots/{batch}/etapes/ia', [Admin\BatchStepController::class, 'generate'])->name('batches.steps.ai')->whereNumber('batch');
     Route::put('lots/{batch}/etapes/{step}', [Admin\BatchStepController::class, 'update'])->name('batches.steps.update')->whereNumber(['batch', 'step']);
     Route::delete('lots/{batch}/etapes/{step}', [Admin\BatchStepController::class, 'destroy'])->name('batches.steps.destroy')->whereNumber(['batch', 'step']);
     Route::post('lots/{batch}/etapes/{step}/deplacer', [Admin\BatchStepController::class, 'move'])->name('batches.steps.move')->whereNumber(['batch', 'step']);
