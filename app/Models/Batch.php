@@ -17,7 +17,7 @@ class Batch extends Model
     /** @use HasFactory<BatchFactory> */
     use HasFactory;
 
-     /** Links every traced lot should show, from the farm to the consumer (processing is optional). */
+    /** Links every traced lot should show, from the farm to the consumer (processing is optional). */
     public const ESSENTIAL_STAGES = ['production', 'distribution', 'consumer'];
 
     protected $fillable = ['code', 'product_id', 'quantity', 'status', 'production_date'];

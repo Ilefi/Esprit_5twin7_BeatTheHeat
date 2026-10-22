@@ -120,7 +120,6 @@ class BatchStepController extends Controller
                 : "Vérification retirée pour l'étape « {$step->title} ».");
     }
 
-
     /**
      * AI draft of the "action réalisée" field, written from what the admin already typed in the step form.
      */
