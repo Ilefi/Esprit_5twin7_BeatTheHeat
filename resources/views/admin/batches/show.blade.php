@@ -85,6 +85,7 @@
                     <div class="flex justify-between"><dt class="text-muted-foreground">Étapes</dt><dd class="font-medium">{{ $batch->steps->count() }}</dd></div>
                     <div class="flex justify-between"><dt class="text-muted-foreground">Distance totale</dt><dd class="font-medium">{{ $batch->total_km }} km</dd></div>
                     <div class="flex justify-between"><dt class="text-muted-foreground">Acteurs</dt><dd class="font-medium">{{ $batch->actors_count }}</dd></div>
+                    <div class="flex justify-between"><dt class="text-muted-foreground">Complétude</dt><dd class="font-medium">{{ $batch->completeness }} %</dd></div>
                 </dl>
             </x-nt.card>
             <x-nt.card class="text-center">

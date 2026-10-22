@@ -48,8 +48,8 @@
                         </div>
                     </div>
                 </div>
-                <dl class="grid grid-cols-3 gap-3 text-center">
-                    @foreach ([['Étapes', $batch->steps->count()], ['Acteurs', $batch->actors_count], ['Distance', $batch->total_km.' km']] as [$label, $value])
+                <dl class="grid grid-cols-2 gap-3 text-center sm:grid-cols-4"></dl>
+                    @foreach ([['Étapes', $batch->steps->count()], ['Acteurs', $batch->actors_count], ['Distance', $batch->total_km.' km'], ['Complétude', $batch->completeness.' %']] as [$label, $value])
                         <div class="nt-card px-4 py-3">
                             <dd class="font-heading text-xl font-bold">{{ $value }}</dd>
                             <dt class="text-xs text-muted-foreground">{{ $label }}</dt>
