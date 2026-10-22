@@ -100,6 +100,28 @@ class BatchStepController extends Controller
     }
 
     /**
+     * Toggles the "verified" flag of a step. A step with no actor (consumer stage) cannot be verified.
+     */
+    public function verify(int $batch, int $step): RedirectResponse
+    {
+        $batch = Batch::findOrFail($batch);
+        $step = $batch->steps()->findOrFail($step);
+
+        if (! $step->actor_id) {
+            return redirect()->route('admin.batches.show', $batch->id)
+                ->with('error', "L'étape « {$step->title} » ne peut pas être vérifiée : aucun acteur responsable n'y est rattaché.");
+        }
+
+        $step->update(['verified' => ! $step->verified]);
+
+        return redirect()->route('admin.batches.show', $batch->id)
+            ->with('success', $step->verified
+                ? "Étape « {$step->title} » marquée comme vérifiée."
+                : "Vérification retirée pour l'étape « {$step->title} ».");
+    }
+
+
+    /**
      * AI draft of the "action réalisée" field, written from what the admin already typed in the step form.
      */
     public function generate(Request $request, int $batch, TraceabilityAssistant $assistant): JsonResponse
